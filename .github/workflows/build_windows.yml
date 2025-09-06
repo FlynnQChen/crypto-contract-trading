@@ -8,11 +8,11 @@ on:
  
 jobs:
   build:
-    name: Build on Windows
-    runs-on: windows-2022 
+    name: Build on Windows 
+    runs-on: windows-2022
  
     permissions:
-      contents: write 
+      contents: write
  
     steps:
     - name: Checkout code 
@@ -21,24 +21,22 @@ jobs:
     - name: Verify project structure
       shell: pwsh
       run: |
-        # 单行命令检查目录结构
-        if (-not (Test-Path "src/core")) { Write-Error "Missing src/core directory"; exit 1 }
-        if (-not (Test-Path "config")) { Write-Error "Missing config directory"; exit 1 }
+        # 单行检查目录结构 
+        if (-not (Test-Path "src/core")) { Write-Output "::error::Missing src/core directory"; exit 1 }
+        if (-not (Test-Path "config")) { Write-Output "::error::Missing config directory"; exit 1 }
  
-        # 单行命令创建入口文件 
+        # 创建入口文件 (单行if语句)
         if (-not (Test-Path "src/core/cli.py"))  {
-          @'
-from src.core.strategy.base  import run_default_strategy 
-from src.api.binance_futures  import BinanceAPI 
-if __name__ == "__main__": run_default_strategy(BinanceAPI())
-'@ | Out-File -FilePath "src/temp_entry.py"  -Encoding ASCII 
-          echo "ENTRY_POINT=src/temp_entry.py"  >> $env:GITHUB_ENV 
+          Write-Output "from src.core.strategy.base  import run_default_strategy" > src/temp_entry.py  
+          Write-Output "from src.api.binance_futures  import BinanceAPI" >> src/temp_entry.py  
+          Write-Output "if __name__ == '__main__': run_default_strategy(BinanceAPI())" >> src/temp_entry.py 
+          echo "ENTRY_POINT=src/temp_entry.py"  >> $env:GITHUB_ENV
         } else {
-          echo "ENTRY_POINT=src/core/cli.py"  >> $env:GITHUB_ENV 
+          echo "ENTRY_POINT=src/core/cli.py"  >> $env:GITHUB_ENV
         }
  
-    - name: Set up Python 
-      uses: actions/setup-python@v4
+    - name: Set up Python
+      uses: actions/setup-python@v4 
       with:
         python-version: '3.10'
  
@@ -60,11 +58,11 @@ if __name__ == "__main__": run_default_strategy(BinanceAPI())
           --hidden-import src.core.strategy.base  `
           --icon assets/icon.ico  `
           --name CryptoTrader `
-          $env:ENTRY_POINT 
+          $env:ENTRY_POINT
  
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
+    - name: Upload artifact 
+      uses: actions/upload-artifact@v4 
       with:
-        name: CryptoTrader-Windows
-        path: dist/CryptoTrader.exe 
-        retention-days: 3
+        name: CryptoTrader-Windows 
+        path: dist/CryptoTrader.exe  
+        retention-days: 3 
