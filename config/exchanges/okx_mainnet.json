@@ -1,0 +1,58 @@
+{
+  "exchange": "okx",
+  "testnet": false,
+  "api_config": {
+    "endpoint": "https://www.okx.com", 
+    "stream_endpoint": "wss://ws.okx.com:8443/ws/v5/private",   // 私有频道 
+    "public_stream": "wss://ws.okx.com:8443/ws/v5/public",      // 公共频道 
+    "api_key": "",                                              // 运行时输入 
+    "api_secret": "",
+    "passphrase": "",                                           // OKX特有
+    "futures_type": "usdt_margined",
+    "rate_limit": { 
+      "requests": 20,                                           // 每秒请求限制 
+      "orders": 10                                              // 每秒订单限制 
+    }
+  },
+  "contract_settings": {
+    "default_leverage": 10,
+    "leverage_limits": {
+      "BTC-USDT": 100,
+      "ETH-USDT": 75,
+      "SOL-USDT": 40,
+      "XRP-USDT": 40,
+      "*": 20 
+    },
+    "position_limits": {
+      "max_balance_ratio": 0.25,                                // 单币种仓位≤25%
+      "min_notional": 5.0,
+      "max_orders_per_symbol": 15                               // 单交易对最大订单数
+    }
+  },
+  "risk_parameters": {
+    "liquidation_levels": {
+      "warning": 0.20,
+      "reduce_only": 0.15,
+      "force_close": 0.08                                       // 强平线比Binance低 
+    },
+    "funding_rate": {
+      "threshold": 0.0008,
+      "check_interval": 1800,
+      "auto_rollover": true                                     // 自动移仓开关 
+    },
+    "okx_specific_risks": {
+      "delisting_protection": {                                 // 合约下架保护
+        "volume_threshold": 1000000,                            // 24h交易量<100万USDT预警 
+        "open_interest_watch": true 
+      }
+    }
+  },
+  "logging": {
+    "trade_history_path": "./logs/okx_trades",
+    "funding_rate_records": true                                // 记录历史资金费率
+  },
+  "advanced": {
+    "algo_order_support": ["iceberg", "twap"],                  // 支持高级订单类型
+    "post_only_strict": true                                    // 严格PostOnly模式 
+  }
+}

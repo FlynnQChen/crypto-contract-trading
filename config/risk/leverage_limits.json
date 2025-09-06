@@ -1,0 +1,66 @@
+{
+  "version": "1.2",
+  "last_updated": "2023-11-20",
+  "exchanges": {
+    "binance": {
+      "usdt_margined": {
+        "BTCUSDT": 125,
+        "ETHUSDT": 100,
+        "BNBUSDT": 75,
+        "SOLUSDT": 50,
+        "XRPUSDT": 50,
+        "ADAUSDT": 20,
+        "DOGEUSDT": 25,
+        "MATICUSDT": 20,
+        "*": 20 
+      },
+      "coin_margined": {
+        "BTCUSD_PERP": 50,
+        "*": 20 
+      }
+    },
+    "okx": {
+      "usdt_margined": {
+        "BTC-USDT": 100,
+        "ETH-USDT": 75,
+        "SOL-USDT": 40,
+        "*": 20 
+      },
+      "coin_margined": {
+        "BTC-USD-SWAP": 30,
+        "*": 10 
+      }
+    }
+  },
+  "global_rules": {
+    "max_cross_leverage": 125,
+    "max_isolated_leverage": 50,
+    "adjustment_rules": {
+      "cooldown": 3600,
+      "max_daily_adjustments": 5
+    },
+    "blacklist": {
+      "symbols": ["1000LUNCUSDT", "LUNA2USDT"],
+      "leverage_override": {
+        "1000LUNCUSDT": 5,
+        "LUNA2USDT": 3 
+      }
+    },
+    "volatility_adjustments": [
+      {
+        "threshold": 0.05,
+        "factor": 0.8,
+        "symbols": ["BTCUSDT", "ETHUSDT"]
+      },
+      {
+        "threshold": 0.1,
+        "factor": 0.5,
+        "apply_to": "all"
+      }
+    ]
+  },
+  "maintenance_schedule": {
+    "binance": "2023-12-05T04:00:00Z",
+    "okx": "2023-12-05T05:00:00Z"
+  }
+}

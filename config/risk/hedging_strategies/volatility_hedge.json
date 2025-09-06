@@ -1,0 +1,57 @@
+{
+  "strategy": "volatility_hedge",
+  "version": "1.2",
+  "enabled": true,
+  "volatility_indicators": {
+    "primary": "ATR_24h",          // 主要指标：24小时平均真实波幅
+    "secondary": ["RSI_14", "BB_width_20"],  // 辅助指标
+    "thresholds": {
+      "high_vol": 0.05,           // ATR>5%视为高波动 
+      "extreme_vol": 0.1          // ATR>10%为极端波动
+    }
+  },
+  "hedge_ratio_calculation": {
+    "base_ratio": 0.3,            // 基础对冲比例30%
+    "dynamic_adjustment": {
+      "rsi_factor": 0.01,         // RSI每超70线1点增加1%对冲
+      "bb_factor": 0.5            // 布林带宽每+1σ增加0.5%
+    },
+    "max_ratio": 0.7              // 最大对冲比例70%
+  },
+  "instrument_selection": {
+    "spot_futures": true,         // 启用现货-合约对冲
+    "cross_margin": false,        // 禁用全仓模式 
+    "preferred_pairs": ["BTC", "ETH", "SOL"]
+  },
+  "execution_rules": {
+    "order_type": "twap_1min",    // 1分钟TWAP下单 
+    "price_deviation": 0.002,     // 允许0.2%偏离中间价
+    "size_limit": {
+      "per_trade": 0.1,           // 单次交易≤10%仓位
+      "daily_total": 0.5          // 日累计≤50%仓位
+    }
+  },
+  "risk_controls": {
+    "circuit_breakers": {
+      "max_drawdown": -0.15,      // 累计亏损15%停止 
+      "volatility_spike": 0.15    // 波动突增>15%暂停
+    },
+    "liquidity_check": {
+      "min_depth": 50000,         // 最小盘口深度5万USDT
+      "slippage_limit": 0.005     // 最大允许滑点0.5%
+    }
+  },
+  "monitoring": {
+    "metrics": {
+      "prometheus": {
+        "port": 9100,
+        "path": "/metrics"
+      }
+    },
+    "alert_channels": ["sms", "webhook"]
+  },
+  "backtest_params": {
+    "historical_volatility_window": 30,  // 30天历史波动率 
+    "commission_rate": 0.0004           // 考虑0.04%手续费
+  }
+}

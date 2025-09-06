@@ -1,0 +1,39 @@
+{
+  "strategy": "basic_arbitrage",
+  "version": "1.1",
+  "enabled": false,  // 默认不启用
+  "exchange_pairs": [
+    {
+      "primary": "binance",
+      "secondary": "okx",
+      "symbol_mapping": {
+        "BTCUSDT": "BTC-USDT",
+        "ETHUSDT": "ETH-USDT"
+      }
+    }
+  ],
+  "trigger_conditions": {
+    "price_gap": 0.003,          // 价差>0.3%触发 
+    "funding_rate_gap": 0.0005,  // 资金费率差>0.05%
+    "min_liquidity": 100000      // 最小流动性(USDT)
+  },
+  "execution": {
+    "order_type": "limit",
+    "slippage": 0.001,           // 允许1‰滑点 
+    "size_calculation": {
+      "method": "risk_adjusted",
+      "max_per_trade": 0.1,      // 单次最大开仓比例(总资金10%)
+      "volatility_factor": 0.5   // 波动率调整系数 
+    },
+    "hedge_ratio": 1.0           // 完全对冲 
+  },
+  "risk_controls": {
+    "max_daily_trades": 10,
+    "stop_loss": -0.05,          // 单日累计亏损5%停止 
+    "cool_down": 300             // 交易间隔(秒)
+  },
+  "monitoring": {
+    "prometheus_metrics": true,
+    "log_path": "./logs/arbitrage"
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "condition": "low_liquidity",
+  "version": "1.3",
+  "detection": {
+    "liquidity_metrics": {
+      "orderbook_depth": {
+        "bid_ask_spread": 0.002,     // 盘口价差>0.2%
+        "depth_levels": {
+          "level1": 50000,           // 第一档深度<5万USDT
+          "level3": 150000           // 三档累计深度<15万USDT 
+        }
+      },
+      "trade_indicators": {
+        "volume_ratio": 0.3,         // 当前成交量<30%日均
+        "cancel_rate": 0.6           // 订单取消率>60%
+      }
+    },
+    "time_conditions": {
+      "off_hours": [                 // 非活跃时段 
+        "00:00-04:00 UTC",
+        "12:00-14:00 UTC"
+      ],
+      "holidays": ["2023-12-25"]     // 特殊休市日 
+    }
+  },
+  "trading_restrictions": {
+    "order_size_limits": {
+      "max_market_order": 0.5,       // 市价单≤0.5BTC等值
+      "limit_order_premium": 0.005,  // 限单价差≥0.5%
+      "twap_minutes": 3              // 大单分3分钟执行 
+    },
+    "position_controls": {
+      "new_entry": false,            // 禁止新建仓位
+      "reduce_only": true            // 只允许减仓 
+    }
+  },
+  "liquidity_providing": {
+    "auto_quote": {
+      "enabled": true,
+      "bid_spread": 0.008,          // 做市买单价差0.8%
+      "ask_spread": 0.006,          // 做市卖单价差0.6%
+      "refresh_seconds": 30         // 每30秒更新报价
+    },
+    "incentive_monitoring": {
+      "binance_liquidity_score": 2,  // 流动性评分<2时
+      "okx_maker_rebate": 0.0002     // 挂单返佣≥0.02%时 
+    }
+  },
+  "circuit_breakers": {
+    "emergency_actions": [
+      {
+        "condition": "spread_0.01",  // 价差>1%
+        "action": "pause_trading"
+      },
+      {
+        "condition": "depth_10k",    // 深度<1万USDT 
+        "action": "force_close"
+      }
+    ]
+  },
+  "cross_exchange_fallback": {
+    "enabled": true,
+    "alternative_exchanges": ["bybit", "kucoin"],
+    "size_multiplier": 0.5          // 交易量减半 
+  },
+  "recovery_settings": {
+    "stabilization_requirements": {
+      "continuous_depth": 300000,    // 深度持续>30万USDT 
+      "spread_below": 0.001,
+      "duration": 600                // 维持10分钟 
+    }
+  },
+  "logging": {
+    "orderbook_snapshots": {
+      "enabled": true,
+      "interval": 60                 // 每分钟记录盘口
+    }
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "condition": "high_volatility",
+  "version": "1.2",
+  "detection": {
+    "indicators": {
+      "primary": {
+        "type": "ATR",
+        "window": 24,               // 24小时平均真实波幅
+        "threshold": 0.05           // >5%触发高波动状态 
+      },
+      "secondary": [
+        {
+          "type": "RSI",
+          "window": 14,
+          "overbought": 75,
+          "oversold": 25 
+        },
+        {
+          "type": "Volume_Ratio",
+          "window": 4,
+          "threshold": 2.0          // 成交量是4小时均量2倍 
+        }
+      ]
+    },
+    "confirmation_rules": {
+      "required_confirmations": 2,  // 需2个次级指标确认 
+      "duration_threshold": 1800    // 持续30分钟才生效 
+    }
+  },
+  "trading_restrictions": {
+    "leverage_adjustment": {
+      "default_multiplier": 0.5,    // 杠杆降至原值50%
+      "per_symbol": {
+        "BTCUSDT": 0.6,
+        "ETHUSDT": 0.55
+      }
+    },
+    "position_limits": {
+      "max_new_orders": 3,          // 每分钟最大新订单数 
+      "size_reduction": 0.4         // 单笔最大仓位降至40%
+    },
+    "order_types": {
+      "restrict_market_orders": true, // 禁用市价单
+      "limit_order_premium": 0.003   // 限单价差要求0.3%
+    }
+  },
+  "circuit_breakers": {
+    "price_move_triggers": [
+      {
+        "change": 0.03,             // 3分钟波动>3%
+        "action": "pause_15min"
+      },
+      {
+        "change": 0.05,             // 5分钟波动>5%
+        "action": "disable_leverage"
+      }
+    ],
+    "liquidation_cascade_defense": {
+      "enabled": true,
+      "monitor_symbols": ["BTCUSDT", "ETHUSDT"]
+    }
+  },
+  "recovery_settings": {
+    "stabilization_period": 3600,   // 稳定1小时后解除限制
+    "confirmation_indicators": {
+      "volatility_below": 0.03,
+      "volume_normalization": 0.8 
+    }
+  },
+  "cross_exchange_arbitrage": {
+    "enabled": true,
+    "spread_threshold": 0.008,      // 交易所价差>0.8%时
+    "allowed_pairs": ["BTC", "ETH"]
+  },
+  "logging": {
+    "snapshot_frequency": 300,      // 每5分钟记录市场状态 
+    "path": "./logs/volatility" 
+  }
+}

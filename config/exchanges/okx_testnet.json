@@ -1,0 +1,47 @@
+{
+  "exchange": "okx",
+  "testnet": true,
+  "api_config": {
+    "endpoint": "https://www.okx.com", 
+    "demo_endpoint": "https://www.okx.com",   // OKX测试网与主网同域名 
+    "api_key": "",                           // 运行时通过Web界面输入
+    "api_secret": "",
+    "passphrase": "",                        // OKX特有参数 
+    "futures_type": "usdt_margined"
+  },
+  "contract_settings": {
+    "default_leverage": 10,
+    "leverage_limits": {
+      "BTC-USDT": 100,
+      "ETH-USDT": 75,
+      "SOL-USDT": 40,
+      "*": 20                                // 其他交易对默认值 
+    },
+    "position_limits": {
+      "max_balance_ratio": 0.25,             // 单币种最大仓位25%
+      "min_notional": 5.0                    // 最小下单金额5USDT 
+    }
+  },
+  "risk_parameters": {
+    "liquidation_levels": {
+      "warning": 0.20,                       // 保证金率≤20%预警
+      "reduce_only": 0.15,                   // ≤15%只减仓 
+      "force_close": 0.08                    // ≤8%强平（OKX比Binance严格）
+    },
+    "funding_rate": {
+      "threshold": 0.0008,                   // 费率>0.08%触发保护
+      "check_interval": 1800
+    }
+  },
+  "testnet_specific": {
+    "simulate_balance": 5000,                // 测试网初始余额(USDT)
+    "mock_features": {
+      "funding_rate": true,                  // 模拟资金费率
+      "liquidation": true                    // 模拟强平事件 
+    }
+  },
+  "okx_specific": {
+    "instrument_type": "SWAP",               // 合约类型 SWAP/FUTURES 
+    "margin_mode": "cross"                   // 账户模式 cross/isolated
+  }
+}

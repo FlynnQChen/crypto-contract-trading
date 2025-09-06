@@ -1,0 +1,80 @@
+{
+  "version": "1.4",
+  "last_updated": "2023-11-20",
+  "exchanges": {
+    "binance": {
+      "tiered_thresholds": {
+        "monitor": 0.0003,          // 监控阈值（0.03%）
+        "warning": 0.0005,          // 预警阈值（0.05%）
+        "action": 0.00075,          // 行动阈值（0.075%）
+        "extreme": 0.0015           // 极端阈值（0.15%）
+      },
+      "protection_actions": {
+        "warning": {
+          "notify": ["email", "sms"],
+          "log_level": "warning"
+        },
+        "action": {
+          "reduce_only": true,      // 只允许平仓
+          "cancel_pending": true    // 撤销未成交订单 
+        },
+        "extreme": {
+          "pause_new_orders": {
+            "duration": 3600,       // 暂停1小时
+            "whitelist": ["BTCUSDT"]
+          },
+          "force_hedge": {
+            "enabled": true,
+            "max_ratio": 0.2        // 最大对冲仓位20%
+          }
+        }
+      },
+      "check_intervals": {
+        "normal": 900,              // 常规检查间隔（15分钟）
+        "high_risk": 300            // 高风险时检查间隔（5分钟）
+      }
+    },
+    "okx": {
+      "tiered_thresholds": {
+        "monitor": 0.0004,
+        "warning": 0.0006,
+        "action": 0.0009,
+        "extreme": 0.002
+      },
+      "okx_specific": {
+        "auto_rollover": true       // 启用自动移仓
+      }
+    }
+  },
+  "global_hedging": {
+    "cross_exchange": {
+      "enabled": true,
+      "spread_threshold": 0.001,    // 费率差>0.1%时触发 
+      "exchanges": ["binance", "okx"]
+    }
+  },
+  "negative_funding": {             // 负费率特殊处理
+    "threshold": -0.001,
+    "actions": {
+      "reverse_position": true,     // 反向开仓对冲 
+      "max_hedge_ratio": 0.3
+    }
+  },
+  "backtest": {
+    "simulation_mode": "histrical", // 历史数据模拟 
+    "override_thresholds": {        // 回测专用阈值 
+      "action": 0.001,
+      "extreme": 0.002
+    }
+  },
+  "monitoring": {
+    "logging": {
+      "path": "./logs/funding",
+      "keep_days": 7 
+    },
+    "prometheus": {
+      "enabled": true,
+      "port": 9091 
+    }
+  }
+}

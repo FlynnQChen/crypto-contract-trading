@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>量化交易风险控制面板</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"  rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css"> 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> 
+    <script src="https://cdn.jsdelivr.net/npm/luxon@2.0.2"></script> 
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.0.0"></script> 
+    <style>
+        :root {
+            --color-critical: #dc3545;
+            --color-warning: #ffc107;
+            --color-safe: #28a745;
+            --color-info: #17a2b8;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+        }
+        .dashboard-header {
+            background: linear-gradient(135deg, #2c3e50 0%, #1a1a2e 100%);
+            color: white;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .card {
+            border: none;
+            border-radius: 0.5rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            margin-bottom: 1.5rem;
+            transition: transform 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        .card-header {
+            background-color: white;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            font-weight: 600;
+            padding: 1rem 1.25rem;
+        }
+        .risk-indicator {
+            height: 10px;
+            border-radius: 5px;
+            margin-top: 5px;
+        }
+        .alert-card {
+            border-left: 4px solid var(--color-warning);
+        }
+        .alert-critical {
+            border-left-color: var(--color-critical);
+        }
+        .alert-safe {
+            border-left-color: var(--color-safe);
+        }
+        .metric-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+        .metric-label {
+            font-size: 0.9rem;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .status-badge {
+            padding: 0.35em 0.65em;
+            border-radius: 50rem;
+            font-size: 0.75em;
+            font-weight: 700;
+        }
+        .nav-tabs .nav-link.active  {
+            font-weight: 600;
+            border-bottom: 3px solid #0d6efd;
+        }
+        #exposureChart, #volatilityChart {
+            height: 250px;
+        }
+        .table-responsive {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .blink-warning {
+            animation: blink-warning 2s infinite;
+        }
+        @keyframes blink-warning {
+            0% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 193, 7, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); }
+        }
+        .blink-critical {
+            animation: blink-critical 2s infinite;
+        }
+        @keyframes blink-critical {
+            0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <!-- 顶部标题栏 -->
+        <div class="dashboard-header">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h1><i class="fas fa-shield-alt me-2"></i>量化交易风险控制面板</h1>
+                    <p class="mb-0">实时监控系统风险状态和投资组合表现</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <div class="d-inline-block me-3">
+                        <span class="text-white-50 me-2">系统状态:</span>
+                        <span id="systemStatus" class="status-badge bg-success">NORMAL</span>
+                    </div>
+                    <div class="d-inline-block">
+                        <span class="text-white-50 me-2">最后更新:</span>
+                        <span id="lastUpdated" class="text-white">2023-06-15 14:30:45</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+ 
+        <!-- 核心指标行 -->
+        <div class="row">
+            <!-- 风险敞口 -->
+            <div class="col-md-3">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-vector-square me-2"></i>风险敞口</span>
+                        <span id="exposureTrend" class="text-muted"><i class="fas fa-arrow-right"></i></span>
+                    </div>
+                    <div class="card-body text-center">
+                        <div class="metric-value" id="exposureValue">12.5%</div>
+                        <div class="metric-label">总风险敞口</div>
+                        <div class="risk-indicator mt-3">
+                            <div class="progress" style="height: 100%;">
+                                <div id="exposureBar" class="progress-bar bg-success" role="progressbar" style="width: 25%;"></div>
+                            </div>
+                        </div>
+                        <div class="row mt-2 text-center">
+                            <div class="col-6">
+                                <small class="text-muted">上限</small>
+                                <div>15.0%</div>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">警戒线</small>
+                                <div>10.0%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+ 
+            <!-- 波动率 -->
+            <div class="col-md-3">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-chart-line me-2"></i>波动率</span>
+                        <span id="volatilityTrend" class="text-muted"><i class="fas fa-arrow-up"></i></span>
+                    </div>
+                    <div class="card-body text-center">
+                        <div class="metric-value" id="volatilityValue">1.85%</div>
+                        <div class="metric-label">30日年化波动率</div>
+                        <div class="risk-indicator mt-3">
+                            <div class="progress" style="height: 100%;">
+                                <div id="volatilityBar" class="progress-bar bg-warning" role="progressbar" style="width: 65%;"></div>
+                            </div>
+                        </div>
+                        <div class="row mt-2 text-center">
+                            <div class="col-6">
+                                <small class="text-muted">上限</small>
+                                <div>2.5%</div>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">平均</small>
+                                <div>1.2%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+ 
+            <!-- 最大回撤 -->
+            <div class="col-md-3">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-water me-2"></i>最大回撤</span>
+                        <span id="drawdownTrend" class="text-muted"><i class="fas fa-arrow-down"></i></span>
+                    </div>
+                    <div class="card-body text-center">
+                        <div class="metric-value" id="drawdownValue">4.2%</div>
+                        <div class="metric-label">当前最大回撤</div>
+                        <div class="risk-indicator mt-3">
+                            <div class="progress" style="height: 100%;">
+                                <div id="drawdownBar" class="progress-bar bg-info" role="progressbar" style="width: 42%;"></div>
+                            </div>
+                        </div>
+                        <div class="row mt-2 text-center">
+                            <div class="col-6">
+                                <small class="text-muted">上限</small>
+                                <div>8.0%</div>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">历史峰值</small>
+                                <div>7.3%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+ 
+            <!-- 夏普比率 -->
+            <div class="col-md-3">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-star me-2"></i>风险调整收益</span>
+                        <span id="sharpeTrend" class="text-muted"><i class="fas fa-arrow-up"></i></span>
+                    </div>
+                    <div class="card-body text-center">
+                        <div class="metric-value" id="sharpeValue">2.15</div>
+                        <div class="metric-label">夏普比率(年化)</div>
+                        <div class="risk-indicator mt-3">
+                            <div class="progress" style="height: 100%;">
+                                <div id="sharpeBar" class="progress-bar bg-success" role="progressbar" style="width: 86%;"></div>
+                            </div>
+                        </div>
+                        <div class="row mt-2 text-center">
+                            <div class="col-6">
+                                <small class="text-muted">目标</small>
+                                <div>1.5+</div>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">上月</small>
+                                <div>1.92</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+ 
+        <!-- 图表和警报行 -->
+        <div class="row mt-4">
+            <!-- 风险敞口图表 -->
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-chart-area me-2"></i>风险敞口历史 
+                    </div>
+                    <div class="card-body">
+                        <canvas id="exposureChart"></canvas>
+                    </div>
+                </div>
+            </div>
+ 
+            <!-- 波动率图表 -->
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-chart-line me-2"></i>波动率趋势 
+                    </div>
+                    <div class="card-body">
+                        <canvas id="volatilityChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+ 
+        <!-- 警报和头寸行 -->
+        <div class="row mt-4">
+            <!-- 风险警报 -->
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-exclamation-triangle me-2"></i>风险警报</span>
+                        <span class="badge bg-danger">3 新警报</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th width="120">时间</th>
+                                        <th>类型</th>
+                                        <th>严重程度</th>
+                                        <th>状态</th>
+                                        <th width="50"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="alertsTable">
+                                    <tr class="align-middle">
+                                        <td>14:30:45</td>
+                                        <td>ETH-USDT 波动率激增</td>
+                                        <td><span class="badge bg-danger">严重</span></td>
+                                        <td><span class="badge bg-warning">未处理</span></td>
+                                        <td><button class="btn btn-sm btn-outline-secondary"><i class="fas fa-ellipsis-v"></i></button></td>
+                                    </tr>
+                                    <tr class="align-middle">
+                                        <td>14:25:30</td>
+                                        <td>BTC-USDT 风险敞口超限</td>
+                                        <td><span class="badge bg-warning">警告</span></td>
+                                        <td><span class="badge bg-success">已处理</span></td>
+                                        <td><button class="btn btn-sm btn-outline-secondary"><i class="fas fa-ellipsis-v"></i></button></td>
+                                    </tr>
+                                    <tr class="align-middle">
+                                        <td>14:10:15</td>
+                                        <td>交易所连接中断</td>
+                                        <td><span class="badge bg-danger">严重</span></td>
+                                        <td><span class="badge bg-warning">未处理</span></td>
+                                        <td><button class="btn btn-sm btn-outline-secondary"><i class="fas fa-ellipsis-v"></i></button></td>
+                                    </tr>
+                                    <tr class="align-middle">
+                                        <td>13:45:22</td>
+                                        <td>流动性下降警告</td>
+                                        <td><span class="badge bg-warning">警告</span></td>
+                                        <td><span class="badge bg-success">已处理</span></td>
+                                        <td><button class="btn btn-sm btn-outline-secondary"><i class="fas fa-ellipsis-v"></i></button></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+ 
+            <!-- 当前头寸 -->
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-list-ol me-2"></i>当前头寸
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>交易对</th>
+                                        <th>方向</th>
+                                        <th>规模</th>
+                                        <th>盈亏</th>
+                                        <th>风险值</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="positionsTable">
+                                    <tr>
+                                        <td>BTC-USDT</td>
+                                        <td><span class="badge bg-success">做多</span></td>
+                                        <td>$12,450</td>
+                                        <td class="text-success">+2.3%</td>
+                                        <td><div class="progress" style="height: 6px;">
+                                            <div class="progress-bar bg-success" style="width: 30%"></div>
+                                        </div></td>
+                                    </tr>
+                                    <tr>
+                                        <td>ETH-USDT</td>
+                                        <td><span class="badge bg-danger">做空</span></td>
+                                        <td>$8,720</td>
+                                        <td class="text-danger">-1.2%</td>
+                                        <td><div class="progress" style="height: 6px;">
+                                            <div class="progress-bar bg-warning" style="width: 65%"></div>
+                                        </div></td>
+                                    </tr>
+                                    <tr>
+                                        <td>SOL-USDT</td>
+                                        <td><span class="badge bg-success">做多</span></td>
+                                        <td>$5,310</td>
+                                        <td class="text-success">+3.8%</td>
+                                        <td><div class="progress" style="height: 6px;">
+                                            <div class="progress-bar bg-success" style="width: 25%"></div>
+                                        </div></td>
+                                    </tr>
+                                    <tr>
+                                        <td>ADA-USDT</td>
+                                        <td><span class="badge bg-danger">做空</span></td>
+                                        <td>$3,980</td>
+                                        <td class="text-success">+0.5%</td>
+                                        <td><div class="progress" style="height: 6px;">
+                                            <div class="progress-bar bg-info" style="width: 45%"></div>
+                                        </div></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+ 
+        <!-- 系统控制行 -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-sliders-h me-2"></i>风险控制
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="d-grid gap-2">
+                                    <button id="reduceRiskBtn" class="btn btn-warning btn-lg">
+                                        <i class="fas fa-compress-arrows-alt me-2"></i>降低风险
+                                    </button>
+                                    <small class="text-muted">平掉20%高风险头寸</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="d-grid gap-2">
+                                    <button id="hedgeBtn" class="btn btn-info btn-lg">
+                                        <i class="fas fa-balance-scale me-2"></i>执行对冲
+                                    </button>
+                                    <small class="text-muted">建立市场中性头寸</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="d-grid gap-2">
+                                    <button id="emergencyBtn" class="btn btn-danger btn-lg">
+                                        <i class="fas fa-power-off me-2"></i>紧急停止 
+                                    </button>
+                                    <small class="text-muted">平掉所有头寸并暂停交易</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+ 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script> 
+    <script>
+        // 初始化图表 
+        document.addEventListener('DOMContentLoaded',  function() {
+            // 风险敞口图表 
+            const exposureCtx = document.getElementById('exposureChart').getContext('2d'); 
+            const exposureChart = new Chart(exposureCtx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length:  30}, (_, i) => {
+                        const date = new Date();
+                        date.setDate(date.getDate()  - (30 - i));
+                        return date.toLocaleDateString(); 
+                    }),
+                    datasets: [{
+                        label: '风险敞口(%)',
+                        data: [8.2, 7.8, 8.5, 9.1, 9.8, 10.2, 11.5, 12.1, 12.5, 11.8, 
+                               11.2, 10.5, 9.8, 9.2, 9.5, 10.1, 10.8, 11.2, 11.5, 12.1, 
+                               12.5, 12.8, 13.1, 12.8, 12.5, 12.1, 11.8, 11.5, 11.2, 12.5],
+                        borderColor: '#007bff',
+                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4
+                    }, {
+                        label: '风险上限',
+                        data: Array(30).fill(15),
+                        borderColor: '#dc3545',
+                        borderWidth: 1,
+                        borderDash: [5, 5],
+                        backgroundColor: 'transparent',
+                        pointRadius: 0
+                    }, {
+                        label: '警戒线',
+                        data: Array(30).fill(10),
+                        borderColor: '#ffc107',
+                        borderWidth: 1,
+                        borderDash: [5, 5],
+                        backgroundColor: 'transparent',
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 20,
+                            title: {
+                                display: true,
+                                text: '风险敞口(%)'
+                            }
+                        }
+                    }
+                }
+            });
+ 
+            // 波动率图表
+            const volatilityCtx = document.getElementById('volatilityChart').getContext('2d'); 
+            const volatilityChart = new Chart(volatilityCtx, {
+                type: 'bar',
+                data: {
+                    labels: Array.from({length:  14}, (_, i) => {
+                        const date = new Date();
+                        date.setDate(date.getDate()  - (14 - i));
+                        return date.toLocaleDateString(); 
+                    }),
+                    datasets: [{
+                        label: '波动率(%)',
+                        data: [1.2, 1.3, 1.5, 1.4, 1.6, 1.8, 1.7, 1.9, 2.1, 2.0, 1.9, 1.8, 1.85, 1.9],
+                        backgroundColor: function(context) {
+                            const value = context.dataset.data[context.dataIndex]; 
+                            return value > 2 ? '#dc3545' : 
+                                   value > 1.5 ? '#ffc107' : '#28a745';
+                        },
+                        borderColor: 'rgba(0, 0, 0, 0.1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false 
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label  + ': ' + context.raw  + '%';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 3,
+                            title: {
+                                display: true,
+                                text: '波动率(%)'
+                            }
+                        }
+                    }
+                }
+            });
+ 
+            // 模拟实时数据更新
+            setInterval(updateMetrics, 5000);
+ 
+            // 按钮事件监听 
+            document.getElementById('reduceRiskBtn').addEventListener('click',  function() {
+                alert('正在执行降低风险操作...');
+                // 这里添加实际的降低风险逻辑
+            });
+ 
+            document.getElementById('hedgeBtn').addEventListener('click',  function() {
+                alert('正在执行对冲操作...');
+                // 这里添加实际的对冲逻辑 
+            });
+ 
+            document.getElementById('emergencyBtn').addEventListener('click',  function() {
+                if (confirm('确定要执行紧急停止吗？这将平掉所有头寸并暂停交易！')) {
+                    alert('紧急停止已触发！');
+                    // 这里添加实际的紧急停止逻辑
+                }
+            });
+        });
+ 
+        // 更新指标数据 
+        function updateMetrics() {
+            // 模拟数据变化
+            const now = new Date();
+            document.getElementById('lastUpdated').textContent  = now.toLocaleString(); 
+            
+            // 随机波动指标
+            const exposure = 12.5 + (Math.random()  - 0.5) * 2;
+            document.getElementById('exposureValue').textContent  = exposure.toFixed(1)  + '%';
+            const exposurePct = Math.min(100,  (exposure / 15) * 100);
+            const exposureBar = document.getElementById('exposureBar'); 
+            exposureBar.style.width  = exposurePct + '%';
+            
+            if (exposure > 12) {
+                exposureBar.className  = 'progress-bar bg-danger blink-critical';
+            } else if (exposure > 10) {
+                exposureBar.className  = 'progress-bar bg-warning blink-warning';
+            } else {
+                exposureBar.className  = 'progress-bar bg-success';
+            }
+ 
+            const volatility = 1.85 + (Math.random()  - 0.5) * 0.3;
+            document.getElementById('volatilityValue').textContent  = volatility.toFixed(2)  + '%';
+            const volatilityPct = Math.min(100,  (volatility / 2.5) * 100);
+            const volatilityBar = document.getElementById('volatilityBar'); 
+            volatilityBar.style.width  = volatilityPct + '%';
+            volatilityBar.className  = volatility > 2 ? 'progress-bar bg-danger' : 
+                                     volatility > 1.5 ? 'progress-bar bg-warning' : 'progress-bar bg-success';
+ 
+            const drawdown = 4.2 + (Math.random()  - 0.5) * 0.5;
+            document.getElementById('drawdownValue').textContent  = drawdown.toFixed(1)  + '%';
+            document.getElementById('drawdownBar').style.width  = (drawdown / 8 * 100) + '%';
+ 
+            const sharpe = 2.15 + (Math.random()  - 0.5) * 0.2;
+            document.getElementById('sharpeValue').textContent  = sharpe.toFixed(2); 
+            document.getElementById('sharpeBar').style.width  = (sharpe / 3 * 100) + '%';
+ 
+            // 更新趋势箭头
+            updateTrendArrow('exposureTrend', exposure - 12.5);
+            updateTrendArrow('volatilityTrend', volatility - 1.85);
+            updateTrendArrow('drawdownTrend', drawdown - 4.2);
+            updateTrendArrow('sharpeTrend', sharpe - 2.15);
+ 
+            // 随机添加警报
+            if (Math.random()  > 0.7) {
+                addRandomAlert();
+            }
+        }
+ 
+        function updateTrendArrow(elementId, change) {
+            const element = document.getElementById(elementId); 
+            if (change > 0.1) {
+                element.innerHTML  = '<i class="fas fa-arrow-up text-danger"></i>';
+            } else if (change < -0.1) {
+                element.innerHTML  = '<i class="fas fa-arrow-down text-success"></i>';
+            } else {
+                element.innerHTML  = '<i class="fas fa-arrow-right text-muted"></i>';
+            }
+        }
+ 
+        function addRandomAlert() {
+            const alerts = [
+                { time: '刚刚', type: 'BTC-USDT 价格波动异常', severity: 'danger', status: 'warning' },
+                { time: '刚刚', type: 'ETH-USDT 流动性下降', severity: 'warning', status: 'warning' },
+                { time: '刚刚', type: 'SOL-USDT 交易量激增', severity: 'info', status: 'success' },
+                { time: '刚刚', type: '交易所API延迟增加', severity: 'danger', status: 'warning' }
+            ];
+            
+            const alert = alerts[Math.floor(Math.random() * alerts.length)]; 
+            const severityClass = {
+                danger: 'bg-danger',
+                warning: 'bg-warning',
+                info: 'bg-info'
+            };
+            const statusClass = {
+                warning: 'bg-warning',
+                success: 'bg-success'
+            };
+            
+            const table = document.getElementById('alertsTable'); 
+            const newRow = table.insertRow(0); 
+            newRow.className  = 'align-middle';
+            newRow.innerHTML  = `
+                <td>${alert.time}</td> 
+                <td>${alert.type}</td> 
+                <td><span class="badge ${severityClass[alert.severity]}">${alert.severity === 'danger' ? '严重' : 
+                    alert.severity  === 'warning' ? '警告' : '信息'}</span></td>
+                <td><span class="badge ${statusClass[alert.status]}">${alert.status === 'warning' ? '未处理' : '已处理'}</span></td>
+                <td><button class="btn btn-sm btn-outline-secondary"><i class="fas fa-ellipsis-v"></i></button></td>
+            `;
+            
+            // 触发警报动画 
+            newRow.style.animation  = 'highlight 2s';
+            setTimeout(() => {
+                newRow.style.animation  = '';
+            }, 2000);
+            
+            // 更新警报计数
+            const badge = document.querySelector('.card-header  .badge');
+            const count = parseInt(badge.textContent)  + 1;
+            badge.textContent  = count + ' 新警报';
+        }
+    </script>
+</body>
+</html>

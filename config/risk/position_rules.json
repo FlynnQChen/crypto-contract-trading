@@ -1,0 +1,72 @@
+{
+  "version": "1.3",
+  "last_updated": "2023-11-20",
+  "exchanges": {
+    "binance": {
+      "per_symbol": {
+        "BTCUSDT": {
+          "max_ratio": 0.4,          // 最大仓位占比40%
+          "min_notional": 10.0,      // 最小名义金额10USDT
+          "reduce_only_threshold": 0.35  // 达到35%时强制只减仓
+        },
+        "ETHUSDT": {
+          "max_ratio": 0.3,
+          "min_notional": 5.0,
+          "reduce_only_threshold": 0.25
+        },
+        "*": {                      // 默认规则 
+          "max_ratio": 0.15,
+          "min_notional": 5.0,
+          "reduce_only_threshold": 0.12
+        }
+      },
+      "cross_margin": {
+        "max_total_ratio": 5.0,      // 全仓总杠杆≤5倍
+        "warning_levels": [3.0, 4.0] // 3倍预警/4倍强制降仓
+      }
+    },
+    "okx": {
+      "per_symbol": {
+        "BTC-USDT": {
+          "max_ratio": 0.35,
+          "min_notional": 5.0,
+          "reduce_only_threshold": 0.3
+        },
+        "*": {
+          "max_ratio": 0.1,
+          "min_notional": 3.0 
+        }
+      }
+    }
+  },
+  "global_controls": {
+    "sector_limits": {              // 板块集中度控制 
+      "AI": {"max_ratio": 0.2, "coins": ["AGIXUSDT", "FETUSDT"]},
+      "MEME": {"max_ratio": 0.1, "coins": ["DOGEUSDT", "PEPEUSDT"]}
+    },
+    "volatility_adjustments": [     // 波动率自适应 
+      {
+        "condition": "high_vol",    // 高波动条件 
+        "metric": "atr_24h",        // 使用24小时ATR指标 
+        "threshold": 0.05,          // ATR>5%
+        "action": {
+          "factor": 0.7,            // 仓位限制×0.7
+          "duration": 86400         // 生效24小时 
+        }
+      }
+    ],
+    "liquidity_protection": {       // 流动性保护 
+      "depth_threshold": 0.003,     // 盘口价差>0.3%时
+      "action": "reject_order"      // 拒绝新开仓
+    }
+  },
+  "emergency": {
+    "market_crash": {               // 市场暴跌应急规则 
+      "price_drop_24h": 0.15,       // 24小时跌幅>15% 
+      "actions": [
+        {"type": "force_reduce", "target_ratio": 0.5},  // 强制减仓至50%
+        {"type": "disable_leverage", "hours": 6}        // 禁用杠杆6小时
+      ]
+    }
+  }
+}

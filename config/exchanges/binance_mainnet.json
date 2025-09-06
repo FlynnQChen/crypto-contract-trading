@@ -1,0 +1,46 @@
+{
+  "exchange": "binance",
+  "testnet": false,
+  "api_config": {
+    "endpoint": "https://fapi.binance.com", 
+    "stream_endpoint": "wss://fstream.binance.com/ws", 
+    "futures_type": "usdt_margined",
+    "api_key": "",                    // 通过Web界面安全输入
+    "api_secret": ""                  // 通过Web界面安全输入 
+  },
+  "contract_settings": {
+    "default_leverage": 10,
+    "leverage_limits": {
+      "BTCUSDT": 125,
+      "ETHUSDT": 100,
+      "BNBUSDT": 75,
+      "SOLUSDT": 50,
+      "XRPUSDT": 50,
+      "*": 20                         // 其他交易对默认限制 
+    },
+    "position_limits": {
+      "max_balance_ratio": 0.3,       // 单币种最大仓位占比（总资金30%）
+      "min_notional": 5.0,            // 最小下单金额(USDT)
+      "max_orders_per_symbol": 10     // 单交易对最大活跃订单数 
+    }
+  },
+  "risk_parameters": {
+    "liquidation_levels": {
+      "warning": 0.20,                // 保证金率≤20%预警 
+      "reduce_only": 0.15,            // 保证金率≤15%自动切换为只减仓 
+      "force_close": 0.10             // 保证金率≤10%强制平仓 
+    },
+    "funding_rate": {
+      "threshold": 0.00075,           // 资金费率>0.075%时暂停开仓
+      "check_interval": 1800          // 监控间隔(秒)
+    },
+    "auto_risk_adjustment": {
+      "enabled": true,                // 启用自动风控
+      "volatility_threshold": 0.05    // 波动率>5%时降低杠杆
+    }
+  },
+  "logging": {
+    "save_trade_history": true,       // 记录成交历史
+    "path": "./logs/binance_trades"   // 存储路径
+  }
+}

@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>量化对冲控制台</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"  rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css"> 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> 
+    <script src="https://cdn.jsdelivr.net/npm/luxon@2.0.2"></script> 
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.0.0"></script> 
+    <style>
+        :root {
+            --color-long: #28a745;
+            --color-short: #dc3545;
+            --color-neutral: #17a2b8;
+            --color-warning: #ffc107;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+        }
+        .console-header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .card {
+            border: none;
+            border-radius: 0.5rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            margin-bottom: 1.5rem;
+            transition: transform 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-3px);
+        }
+        .card-header {
+            background-color: white;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            font-weight: 600;
+            padding: 1rem 1.25rem;
+        }
+        .metric-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+        .metric-label {
+            font-size: 0.9rem;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .status-badge {
+            padding: 0.35em 0.65em;
+            border-radius: 50rem;
+            font-size: 0.75em;
+            font-weight: 700;
+        }
+        .nav-tabs .nav-link.active  {
+            font-weight: 600;
+            border-bottom: 3px solid #0d6efd;
+        }
+        #spreadChart, #performanceChart {
+            height: 250px;
+        }
+        .table-responsive {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .blink-warning {
+            animation: blink-warning 1.5s infinite;
+        }
+        @keyframes blink-warning {
+            0% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.4); }
+            70% { box-shadow: 0 0 0 8px rgba(255, 193, 7, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); }
+        }
+        .blink-critical {
+            animation: blink-critical 1.5s infinite;
+        }
+        @keyframes blink-critical {
+            0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4); }
+            70% { box-shadow: 0 0 0 8px rgba(220, 53, 69, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+        }
+        .exchange-tag {
+            display: inline-block;
+            padding: 0.25em 0.4em;
+            border-radius: 0.25rem;
+            font-size: 0.75em;
+            font-weight: 700;
+            background-color: #e9ecef;
+            color: #495057;
+        }
+        .strategy-tag {
+            display: inline-block;
+            padding: 0.25em 0.4em;
+            border-radius: 0.25rem;
+            font-size: 0.75em;
+            font-weight: 700;
+            background-color: #e9ecef;
+            color: #495057;
+        }
+        .position-long {
+            background-color: rgba(40, 167, 69, 0.1);
+        }
+        .position-short {
+            background-color: rgba(220, 53, 69, 0.1);
+        }
+        .order-book {
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+        }
+        .order-book .bid {
+            color: var(--color-long);
+        }
+        .order-book .ask {
+            color: var(--color-short);
+        }
+        .spread-indicator {
+            height: 10px;
+            border-radius: 5px;
+            margin-top: 5px;
+            background: linear-gradient(90deg, #28a745 0%, #ffc107 50%, #dc3545 100%);
+        }
+        .spread-value {
+            position: absolute;
+            right: 1rem;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <!-- 顶部标题栏 -->
+        <div class="console-header">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h1><i class="fas fa-balance-scale-left me-2"></i>量化对冲控制台</h1>
+                    <p class="mb-0">多交易所价差套利与风险管理</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <div class="d-inline-block me-3">
+                        <span class="text-white-50 me-2">对冲状态:</span>
+                        <span id="hedgeStatus" class="status-badge bg-success">ACTIVE</span>
+                    </div>
+                    <div class="d-inline-block">
+                        <span class="text-white-50 me-2">最后更新:</span>
+                        <span id="lastUpdated" class="text-white">2023-06-15 15:45:22</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+ 
+        <!-- 核心指标行 -->
+        <div class="row">
+            <!-- 对冲价差 -->
+            <div class="col-md-3">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-arrows-alt-h me-2"></i>对冲价差</span>
+                        <span id="spreadTrend" class="text-muted"><i class="fas fa-arrow-up"></i></span>
+                    </div>
+                    <div class="card-body text-center position-relative">
+                        <div class="metric-value" id="spreadValue">1.25%</div>
+                        <div class="metric-label">BTC-USDT 跨交易所价差</div>
+                        <div class="spread-indicator mt-3">
+                            <div class="spread-value" id="spreadPercentage">75%</div>
+                        </div>
+                        <div class="row mt-4 text-center">
+                            <div class="col-6">
+                                <small class="text-muted">买入交易所</small>
+                                <div class="exchange-tag mt-1">Binance</div>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">卖出交易所</small>
+                                <div class="exchange-tag mt-1">FTX</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+ 
+            <!-- 对冲收益 -->
+            <div class="col-md-3">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-coins me-2"></i>对冲收益</span>
+                        <span id="pnlTrend" class="text-muted"><i class="fas fa-arrow-up"></i></span>
+                    </div>
+                    <div class="card-body text-center">
+                        <div class="metric-value text-success" id="dailyPnl">+$1,245</div>
+                        <div class="metric-label">今日收益</div>
+                        <div class="row mt-4">
+                            <div class="col-6">
+                                <div class="metric-value" id="weeklyPnl">+$5,672</div>
+                                <div class="metric-label">本周收益</div>
+                            </div>
+                            <div class="col-6">
+                                <div class="metric-value" id="monthlyPnl">+$23,890</div>
+                                <div class="metric-label">本月收益</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+ 
+            <!-- 对冲仓位 -->
+            <div class="col-md-3">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-boxes me-2"></i>对冲仓位</span>
+                        <span id="exposureTrend" class="text-muted"><i class="fas fa-arrow-right"></i></span>
+                    </div>
+                    <div class="card-body text-center">
+                        <div class="metric-value" id="hedgeExposure">$124,500</div>
+                        <div class="metric-label">总对冲规模</div>
+                        <div class="row mt-4">
+                            <div class="col-6">
+                                <div class="metric-value text-success" id="longExposure">$62,250</div>
+                                <div class="metric-label">多头仓位</div>
+                            </div>
+                            <div class="col-6">
+                                <div class="metric-value text-danger" id="shortExposure">$62,250</div>
+                                <div class="metric-label">空头仓位</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+ 
+            <!-- 对冲效率 -->
+            <div class="col-md-3">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-tachometer-alt me-2"></i>对冲效率</span>
+                        <span id="efficiencyTrend" class="text-muted"><i class="fas fa-arrow-up"></i></span>
+                    </div>
+                    <div class="card-body text-center">
+                        <div class="metric-value text-success" id="efficiencyValue">92.5%</div>
+                        <div class="metric-label">价差捕获率</div>
+                        <div class="row mt-4">
+                            <div class="col-6">
+                                <div class="metric-value" id="slippageValue">0.12%</div>
+                                <div class="metric-label">平均滑点</div>
+                            </div>
+                            <div class="col-6">
+                                <div class="metric-value" id="fillRateValue">98.7%</div>
+                                <div class="metric-label">订单成交率</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+ 
+        <!-- 图表和订单簿行 -->
+        <div class="row mt-4">
+            <!-- 价差图表 -->
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <ul class="nav nav-tabs card-header-tabs">
+                            <li class="nav-item">
+                                <a class="nav-link active" href="#" data-bs-toggle="tab" data-target="#spreadTab">价差趋势</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" data-bs-toggle="tab" data-target="#performanceTab">对冲表现</a>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card-body">
+                        <div class="tab-content">
+                            <div class="tab-pane active" id="spreadTab">
+                                <canvas id="spreadChart"></canvas>
+                            </div>
+                            <div class="tab-pane" id="performanceTab">
+                                <canvas id="performanceChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+ 
+            <!-- 订单簿 -->
+            <div class="col-lg-6">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-book me-2"></i>订单簿对比 (BTC-USDT)</span>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-secondary active">0.1%</button>
+                            <button class="btn btn-outline-secondary">0.5%</button>
+                            <button class="btn btn-outline-secondary">1%</button>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-borderless order-book mb-0">
+                                <thead>
+                                    <tr class="table-light">
+                                        <th colspan="3" class="text-center">Binance</th>
+                                        <th colspan="3" class="text-center">FTX</th>
+                                    </tr>
+                                    <tr class="table-light">
+                                        <th width="25%">价格</th>
+                                        <th width="20%">数量</th>
+                                        <th width="5%"></th>
+                                        <th width="25%">价格</th>
+                                        <th width="20%">数量</th>
+                                        <th width="5%"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="orderBookBody">
+                                    <!-- 卖单部分 -->
+                                    <tr>
+                                        <td class="ask">30,125.4</td>
+                                        <td>2.45</td>
+                                        <td><i class="fas fa-arrow-up text-danger"></i></td>
+                                        <td class="ask">30,128.7</td>
+                                        <td>1.89</td>
+                                        <td><i class="fas fa-arrow-up text-danger"></i></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="ask">30,124.8</td>
+                                        <td>3.21</td>
+                                        <td></td>
+                                        <td class="ask">30,127.3</td>
+                                        <td>2.56</td>
+                                        <td></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="ask">30,124.2</td>
+                                        <td>1.78</td>
+                                        <td></td>
+                                        <td class="ask">30,126.5</td>
+                                        <td>3.42</td>
+                                        <td></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="ask">30,123.6</td>
+                                        <td>2.91</td>
+                                        <td></td>
+                                        <td class="ask">30,125.9</td>
+                                        <td>1.23</td>
+                                        <td></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="ask">30,123.0</td>
+                                        <td>4.15</td>
+                                        <td></td>
+                                        <td class="ask">30,125.2</td>
+                                        <td>2.67</td>
+                                        <td></td>
+                                    </tr>
+                                    
+                                    <!-- 分隔行 -->
+                                    <tr class="table-light">
+                                        <td colspan="6" class="text-center py-1">
+                                            <span class="badge bg-secondary">价差: $3.2 (0.011%)</span>
+                                        </td>
+                                    </tr>
+                                    
+                                    <!-- 买单部分 -->
+                                    <tr>
+                                        <td class="bid">30,120.5</td>
+                                        <td>3.56</td>
+                                        <td><i class="fas fa-arrow-down text-success"></i></td>
+                                        <td class="bid">30,122.8</td>
+                                        <td>2.91</td>
+                                        <td><i class="fas fa-arrow-down text-success"></i></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="bid">30,119.8</td>
+                                        <td>2.34</td>
+                                        <td></td>
+                                        <td class="bid">30,122.1</td>
+                                        <td>3.45</td>
+                                        <td></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="bid">30,119.2</td>
+                                        <td>4.12</td>
+                                        <td></td>
+                                        <td class="bid">30,121.5</td>
+                                        <td>1.98</td>
+                                        <td></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="bid">30,118.6</td>
+                                        <td>1.67</td>
+                                        <td></td>
+                                        <td class="bid">30,120.9</td>
+                                        <td>2.73</td>
+                                        <td></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="bid">30,118.0</td>
+                                        <td>3.89</td>
+                                        <td></td>
+                                        <td class="bid">30,120.3</td>
+                                        <td>4.21</td>
+                                        <td></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+ 
+        <!-- 对冲策略和订单行 -->
+        <div class="row mt-4">
+            <!-- 活跃对冲策略 -->
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-chess-knight me-2"></i>活跃对冲策略</span>
+                        <span class="badge bg-primary">3 运行中</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th width="120">策略ID</th>
+                                        <th>交易对</th>
+                                        <th>状态</th>
+                                        <th>收益</th>
+                                        <th width="50"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="strategiesTable">
+                                    <tr>
+                                        <td>H-230615-01</td>
+                                        <td>BTC-USDT</td>
+                                        <td><span class="badge bg-success">运行中</span></td>
+                                        <td class="text-success">+2.15%</td>
+                                        <td><button class="btn btn-sm btn-outline-secondary"><i class="fas fa-ellipsis-v"></i></button></td>
+                                    </tr>
+                                    <tr>
+                                        <td>H-230615-02</td>
+                                        <td>ETH-USDT</td>
+                                        <td><span class="badge bg-success">运行中</span></td>
+                                        <td class="text-success">+1.32%</td>
+                                        <td><button class="btn btn-sm btn-outline-secondary"><i class="fas fa-ellipsis-v"></i></button></td>
+                                    </tr>
+                                    <tr>
+                                        <td>H-230614-05</td>
+                                        <td>SOL-USDT</td>
+                                        <td><span class="badge bg-warning">平仓中</span></td>
+                                        <td class="text-danger">-0.45%</td>
+                                        <td><button class="btn btn-sm btn-outline-secondary"><i class="fas fa-ellipsis-v"></i></button></td>
+                                    </tr>
+                                    <tr>
+                                        <td>H-230614-03</td>
+                                        <td>ADA-USDT</td>
+                                        <td><span class="badge bg-secondary">已结束</span></td>
+                                        <td class="text-success">+0.78%</td>
+                                        <td><button class="btn btn-sm btn-outline-secondary"><i class="fas fa-ellipsis-v"></i></button></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+ 
+            <!-- 近期对冲订单 -->
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-exchange-alt me-2"></i>近期对冲订单</span>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-secondary active">全部</button>
+                            <button class="btn btn-outline-secondary">买入</button>
+                            <button class="btn btn-outline-secondary">卖出</button>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th width="120">时间</th>
+                                        <th>交易对</th>
+                                        <th>方向</th>
+                                        <th>价格</th>
+                                        <th>数量</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ordersTable">
+                                    <tr class="position-long">
+                                        <td>15:42:36</td>
+                                        <td>BTC-USDT</td>
+                                        <td><span class="badge bg-success">买入</span></td>
+                                        <td>30,120.5</td>
+                                        <td>0.42</td>
+                                    </tr>
+                                    <tr class="position-short">
+                                        <td>15:42:38</td>
+                                        <td>BTC-USDT</td>
+                                        <td><span class="badge bg-danger">卖出</span></td>
+                                        <td>30,125.8</td>
+                                        <td>0.42</td>
+                                    </tr>
+                                    <tr class="position-long">
+                                        <td>15:38:22</td>
+                                        <td>ETH-USDT</td>
+                                        <td><span class="badge bg-success">买入</span></td>
+                                        <td>1,865.2</td>
+                                        <td>3.2</td>
+                                    </tr>
+                                    <tr class="position-short">
+                                        <td>15:38:25</td>
+                                        <td>ETH-USDT</td>
+                                        <td><span class="badge bg-danger">卖出</span></td>
+                                        <td>1,868.7</td>
+                                        <td>3.2</td>
+                                    </tr>
+                                    <tr class="position-long">
+                                        <td>15:35:11</td>
+                                        <td>SOL-USDT</td>
+                                        <td><span class="badge bg-success">买入</span></td>
+                                        <td>42.56</td>
+                                        <td>25</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+ 
+        <!-- 控制台操作行 -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-gamepad me-2"></i>对冲控制台 
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="d-grid gap-2 mb-3">
+                                    <button id="autoHedgeBtn" class="btn btn-primary btn-lg">
+                                        <i class="fas fa-robot me-2"></i>自动对冲 
+                                    </button>
+                                    <small class="text-muted">根据策略自动执行对冲</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="d-grid gap-2 mb-3">
+                                    <button id="manualHedgeBtn" class="btn btn-info btn-lg">
+                                        <i class="fas fa-hand-paper me-2"></i>手动对冲
+                                    </button>
+                                    <small class="text-muted">手动执行单次对冲</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="d-grid gap-2 mb-3">
+                                    <button id="rebalanceBtn" class="btn btn-warning btn-lg">
+                                        <i class="fas fa-balance-scale-right me-2"></i>再平衡
+                                    </button>
+                                    <small class="text-muted">调整交易所资金平衡</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="d-grid gap-2 mb-3">
+                                    <button id="emergencyCloseBtn" class="btn btn-danger btn-lg">
+                                        <i class="fas fa-power-off me-2"></i>紧急平仓 
+                                    </button>
+                                    <small class="text-muted">平掉所有对冲仓位</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-md-9">
+                                <div class="input-group">
+                                    <span class="input-group-text">对冲参数</span>
+                                    <select class="form-select" id="strategySelect">
+                                        <option selected>价差套利 (默认)</option>
+                                        <option>三角套利</option>
+                                        <option>统计套利</option>
+                                        <option>做市对冲</option>
+                                    </select>
+                                    <select class="form-select" id="symbolSelect">
+                                        <option selected>BTC-USDT</option>
+                                        <option>ETH-USDT</option>
+                                        <option>SOL-USDT</option>
+                                        <option>ADA-USDT</option>
+                                    </select>
+                                    <input type="text" class="form-control" placeholder="金额限制 (USD)" id="amountInput">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="d-grid gap-2">
+                                    <button id="applyParamsBtn" class="btn btn-success btn-lg">
+                                        <i class="fas fa-save me-2"></i>应用参数
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+ 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script> 
+    <script>
+        // 初始化图表 
+        document.addEventListener('DOMContentLoaded',  function() {
+            // 价差图表 
+            const spreadCtx = document.getElementById('spreadChart').getContext('2d'); 
+            const spreadChart = new Chart(spreadCtx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length:  24}, (_, i) => {
+                        return i + ':00';
+                    }),
+                    datasets: [{
+                        label: 'BTC-USDT 价差(%)',
+                        data: [1.2, 1.1, 1.0, 0.9, 0.8, 0.85, 0.9, 1.0, 1.1, 1.2, 1.25, 1.3, 
+                               1.35, 1.4, 1.35, 1.3, 1.25, 1.2, 1.15, 1.1, 1.05, 1.0, 0.95, 1.25],
+                        borderColor: '#6f42c1',
+                        backgroundColor: 'rgba(111, 66, 193, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4 
+                    }, {
+                        label: 'ETH-USDT 价差(%)',
+                        data: [0.8, 0.75, 0.7, 0.65, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95,
+                               1.0, 1.05, 1.1, 1.05, 1.0, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.8],
+                        borderColor: '#fd7e14',
+                        backgroundColor: 'rgba(253, 126, 20, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label  + ': ' + context.raw  + '%';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: '价差百分比(%)'
+                            }
+                        }
+                    }
+                }
+            });
+ 
+            // 对冲表现图表
+            const performanceCtx = document.getElementById('performanceChart').getContext('2d'); 
+            const performanceChart = new Chart(performanceCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['BTC-USDT', 'ETH-USDT', 'SOL-USDT', 'ADA-USDT', 'DOT-USDT'],
+                    datasets: [{
+                        label: '对冲收益(%)',
+                        data: [2.15, 1.32, -0.45, 0.78, 0.92],
+                        backgroundColor: function(context) {
+                            const value = context.dataset.data[context.dataIndex]; 
+                            return value > 0 ? '#28a745' : '#dc3545';
+                        },
+                        borderColor: 'rgba(0, 0, 0, 0.1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false 
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return '收益: ' + context.raw  + '%';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: '收益率(%)'
+                            }
+                        }
+                    }
+                }
+            });
+ 
+            // 标签页切换
+            document.querySelectorAll('[data-bs-toggle="tab"]').forEach(tab  => {
+                tab.addEventListener('click',  function() {
+                    const target = this.getAttribute('data-target'); 
+                    document.querySelectorAll('.tab-pane').forEach(pane  => {
+                        pane.classList.remove('active'); 
+                    });
+                    document.querySelector(target).classList.add('active'); 
+                    
+                    // 更新图表大小 
+                    if (target === '#spreadTab') {
+                        spreadChart.resize(); 
+                    } else {
+                        performanceChart.resize(); 
+                    }
+                });
+            });
+ 
+            // 模拟实时数据更新
+            setInterval(updateMetrics, 3000);
+ 
+            // 按钮事件监听
+            document.getElementById('autoHedgeBtn').addEventListener('click',  function() {
+                toggleButtonState(this, 'AUTO HEDGE', 'bg-primary', 'bg-success');
+            });
+ 
+            document.getElementById('manualHedgeBtn').addEventListener('click',  function() {
+                alert('正在执行手动对冲...');
+                // 这里添加实际的手动对冲逻辑
+            });
+ 
+            document.getElementById('rebalanceBtn').addEventListener('click',  function() {
+                alert('正在执行资金再平衡...');
+                // 这里添加实际的再平衡逻辑 
+            });
+ 
+            document.getElementById('emergencyCloseBtn').addEventListener('click',  function() {
+                if (confirm('确定要紧急平仓吗？这将立即平掉所有对冲头寸！')) {
+                    alert('紧急平仓已触发！');
+                    // 这里添加实际的紧急平仓逻辑
+                }
+            });
+ 
+            document.getElementById('applyParamsBtn').addEventListener('click',  function() {
+                const strategy = document.getElementById('strategySelect').value; 
+                const symbol = document.getElementById('symbolSelect').value; 
+                const amount = document.getElementById('amountInput').value; 
+                
+                alert(`参数已应用:\n策略: ${strategy}\n交易对: ${symbol}\n金额限制: ${amount || '无'}`);
+            });
+        });
+ 
+        // 更新指标数据
+        function updateMetrics() {
+            // 更新时间 
+            const now = new Date();
+            document.getElementById('lastUpdated').textContent  = now.toLocaleString(); 
+            
+            // 随机波动指标
+            const spread = 1.25 + (Math.random()  - 0.5) * 0.3;
+            document.getElementById('spreadValue').textContent  = spread.toFixed(2)  + '%';
+            
+            const spreadPct = Math.min(100,  (spread / 2) * 100);
+            document.getElementById('spreadPercentage').textContent  = spreadPct.toFixed(0)  + '%';
+            
+            // 更新收益数据 
+            const dailyChange = (Math.random()  - 0.3) * 500;
+            const dailyPnl = 1245 + dailyChange;
+            document.getElementById('dailyPnl').textContent  = (dailyPnl > 0 ? '+' : '') + dailyPnl.toFixed(0); 
+            document.getElementById('dailyPnl').className  = dailyPnl > 0 ? 'metric
