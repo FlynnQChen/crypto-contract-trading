@@ -1,4 +1,4 @@
-name: Build Windows Executable 
+name: Build Windows Executable
  
 on:
   push:
@@ -8,18 +8,18 @@ on:
  
 jobs:
   build:
-    name: Build on Windows
-    runs-on: windows-2022 
+    name: Build on Windows 
+    runs-on: windows-2022
  
     permissions:
-      contents: write 
+      contents: write
  
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4 
+    - name: Checkout code 
+      uses: actions/checkout@v4
  
-    - name: Set up Python 
-      uses: actions/setup-python@v4
+    - name: Set up Python
+      uses: actions/setup-python@v4 
       with:
         python-version: '3.10'
  
@@ -29,27 +29,21 @@ jobs:
         pip install pyinstaller==6.15.0 pywin32==311
         pip install requests==2.31.0 websockets==12.0 
  
-    - name: Fix imports and build 
-      shell: pwsh 
+    - name: Prepare build environment
+      shell: pwsh
       run: |
-        # 创建必要的包结构 
+        # 创建必要的包结构
         if (!(Test-Path "src/__init__.py")) { "" > "src/__init__.py" }
         if (!(Test-Path "src/core/__init__.py")) { "" > "src/core/__init__.py" }
         if (!(Test-Path "src/api/__init__.py")) { "" > "src/api/__init__.py" }
  
-        # 修改cli.py 使用绝对导入 
-        @"
-from src.core.strategy.base  import run_default_strategy 
-from src.api.binance_futures  import BinanceAPI 
+        # 使用单行方式写入cli.py 内容
+        $cliContent = "from src.core.strategy.base  import run_default_strategy`nfrom src.api.binance_futures  import BinanceAPI`n`ndef main():`n    run_default_strategy(BinanceAPI())`n`nif __name__ == '__main__':`n    main()"
+        $cliContent | Out-File -FilePath "src/core/cli.py"  -Encoding ASCII
  
-def main():
-    run_default_strategy(BinanceAPI())
- 
-if __name__ == '__main__':
-    main()
-"@ > src/core/cli.py  
- 
-        # 构建命令 
+    - name: Build executable 
+      shell: pwsh 
+      run: |
         pyinstaller --onefile --noconsole --clean `
           --paths src `
           --add-data "config;config" `
