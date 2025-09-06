@@ -1,4 +1,4 @@
-name: Build Windows Executable
+name: Build Windows Executable 
  
 on:
   push:
@@ -8,53 +8,51 @@ on:
  
 jobs:
   build:
-    name: Build on Windows 
-    runs-on: windows-2022
+    name: Build on Windows
+    runs-on: windows-2022 
  
     permissions:
-      contents: write
+      contents: write 
  
     steps:
-    - name: Checkout code 
-      uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4 
  
-    - name: Verify entry point
+    - name: Verify project structure
       shell: pwsh
       run: |
-        # 检查可能的入口文件
-        $entryPoints = @(
-            "src/web/main.py", 
-            "src/core/main.py", 
-            "src/api/main.py" 
-        )
+        # 检查核心目录是否存在 
+        $requiredDirs = @("src/api", "src/core", "config")
+        $missingDirs = $requiredDirs | Where-Object { -not (Test-Path $_) }
         
-        $foundEntry = $null 
-        foreach ($file in $entryPoints) {
-            if (Test-Path $file) {
-                $foundEntry = $file 
-                break
-            }
+        if ($missingDirs) {
+          Write-Output "Missing required directories: $($missingDirs -join ', ')"
+          Get-ChildItem -Recurse 
+          exit 1
         }
  
-        if (-not $foundEntry) {
-            Write-Output "No main.py  found, creating entry point..."
-            @"
-from src.core.strategy.base  import run_strategy 
+        # 确定入口文件 
+        if (Test-Path "src/core/cli.py")  {
+          $entry = "src/core/cli.py" 
+        } elseif (Test-Path "src/core/__main__.py") {
+          $entry = "src/core/__main__.py"
+        } else {
+          # 创建临时入口文件 
+          @"
+from src.core.strategy.base  import run_default_strategy
 from src.api.binance_futures  import BinanceAPI 
  
 if __name__ == "__main__":
-    api = BinanceAPI()
-    run_strategy(api)
-"@ | Out-File -FilePath "src/main.py"  -Encoding ASCII 
-            $foundEntry = "src/main.py" 
+    run_default_strategy(BinanceAPI())
+"@ | Out-File -FilePath "src/temp_entry.py"  -Encoding ASCII
+          $entry = "src/temp_entry.py" 
         }
+        echo "ENTRY_POINT=$entry" >> $env:GITHUB_ENV
  
-        echo "ENTRY_POINT=$foundEntry" >> $env:GITHUB_ENV 
- 
-    - name: Set up Python 
-      uses: actions/setup-python@v4
+    - name: Set up Python
+      uses: actions/setup-python@v4 
       with:
-        python-version: '3.10'
+        python-version: '3.10' 
  
     - name: Install dependencies
       run: |
@@ -65,23 +63,20 @@ if __name__ == "__main__":
     - name: Build executable
       shell: pwsh
       run: |
-        $version = Get-Date -Format "yyyyMMdd.HHmm"
-        echo "VERSION=$version" >> $env:GITHUB_ENV
-        
         pyinstaller --onefile --noconfirm --clean `
           --add-data "config;config" `
           --add-data "src/web/static;static" `
           --add-data "src/web/templates;templates" `
-          --hidden-import="src.api.binance_futures"  `
-          --hidden-import="src.api.okx_futures"  `
-          --hidden-import="src.core.strategy.base"  `
-          --icon="assets/icon.ico"  `
-          --name "CryptoTrader-$env:VERSION" `
-          "$env:ENTRY_POINT"
+          --hidden-import src.api.binance_futures  `
+          --hidden-import src.api.okx_futures  `
+          --hidden-import src.core.strategy.base  `
+          --icon assets/icon.ico  `
+          --name CryptoTrader `
+          $env:ENTRY_POINT 
  
-    - name: Upload artifacts 
+    - name: Upload artifact 
       uses: actions/upload-artifact@v4 
       with:
         name: CryptoTrader-Windows 
-        path: dist/CryptoTrader-${{ env.VERSION }}.exe 
+        path: dist/CryptoTrader.exe  
         retention-days: 3 
