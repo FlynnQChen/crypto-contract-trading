@@ -21,9 +21,8 @@ jobs:
     - name: Verify project structure 
       shell: pwsh 
       run: |
-        # 验证必要文件存在
-        $requiredFiles = "src/core/cli.py",  "assets/icon.ico",  "config"
-        $missing = $requiredFiles | Where-Object { -not (Test-Path $_) }
+        $required = "src/core/cli.py",  "assets/icon.ico",  "config"
+        $missing = $required | Where-Object { -not (Test-Path $_) }
         if ($missing) { 
           Write-Output "::error::Missing files: $($missing -join ', ')"
           exit 1 
@@ -38,23 +37,19 @@ jobs:
       run: |
         python -m pip install --upgrade pip 
         pip install pyinstaller==6.15.0 pywin32==311 pillow==10.3.0
-        pip install requests==2.31.0 websockets==12.0
+        pip install requests==2.31.0 websockets==12.0 
  
-    - name: Convert icon format (if needed)
-      shell: pwsh
-      run: |
-        python -c "
-from PIL import Image
-img = Image.open('assets/icon.ico') 
-if img.format  != 'ICO':
-    print('Converting icon to ICO format...')
-    img.save('assets/converted.ico',  format='ICO')
-"
- 
-    - name: Build executable 
+    - name: Convert icon format 
       shell: pwsh 
       run: |
-        $icon = if (Test-Path "assets/converted.ico")  { "assets/converted.ico"  } else { "assets/icon.ico"  }
+        python -c "from PIL import Image; img = Image.open('assets/icon.ico');  img.save('assets/converted.ico',  format='ICO')" 
+        if (-not (Test-Path "assets/converted.ico"))  {
+          Copy-Item -Path "assets/icon.ico"  -Destination "assets/converted.ico" 
+        }
+ 
+    - name: Build executable
+      shell: pwsh
+      run: |
         pyinstaller --onefile --clean `
           --add-data "config;config" `
           --add-data "src/web/static;static" `
@@ -62,19 +57,13 @@ if img.format  != 'ICO':
           --hidden-import src.api.binance_futures  `
           --hidden-import src.api.okx_futures  `
           --hidden-import src.core.strategy.base  `
-          --icon "$icon" `
+          --icon "assets/converted.ico"  `
           --name CryptoTrader `
-          src/core/cli.py 
+          src/core/cli.py  
  
-        # 验证构建结果 
-        if (-not (Test-Path "dist/CryptoTrader.exe"))  {
-          Write-Output "::error::Build failed - executable not created"
-          exit 1
-        }
- 
-    - name: Upload artifact 
-      uses: actions/upload-artifact@v4 
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
       with:
-        name: CryptoTrader-Windows 
-        path: dist/CryptoTrader.exe  
-        retention-days: 7 
+        name: CryptoTrader-Windows
+        path: dist/CryptoTrader.exe 
+        retention-days: 7
