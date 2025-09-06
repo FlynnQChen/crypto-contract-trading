@@ -21,48 +21,65 @@ jobs:
     - name: Verify project structure
       shell: pwsh
       run: |
-        # 单行检查目录结构 
-        if (-not (Test-Path "src/core")) { Write-Output "::error::Missing src/core directory"; exit 1 }
-        if (-not (Test-Path "config")) { Write-Output "::error::Missing config directory"; exit 1 }
- 
-        # 创建入口文件 (单行if语句)
-        if (-not (Test-Path "src/core/cli.py"))  {
-          Write-Output "from src.core.strategy.base  import run_default_strategy" > src/temp_entry.py  
-          Write-Output "from src.api.binance_futures  import BinanceAPI" >> src/temp_entry.py  
-          Write-Output "if __name__ == '__main__': run_default_strategy(BinanceAPI())" >> src/temp_entry.py 
-          echo "ENTRY_POINT=src/temp_entry.py"  >> $env:GITHUB_ENV
-        } else {
-          echo "ENTRY_POINT=src/core/cli.py"  >> $env:GITHUB_ENV
+        # 验证必要目录存在 
+        $required = "src/core", "config", "assets"
+        $missing = $required | Where-Object { -not (Test-Path $_) }
+        if ($missing) { 
+          Write-Output "::error::Missing directories: $($missing -join ', ')" 
+          exit 1 
         }
  
-    - name: Set up Python
-      uses: actions/setup-python@v4 
+        # 创建临时入口文件（如果没有cli.py ）
+        if (-not (Test-Path "src/core/cli.py"))  {
+          @'
+from src.core.strategy.base  import run_default_strategy 
+from src.api.binance_futures  import BinanceAPI 
+ 
+if __name__ == "__main__":
+    run_default_strategy(BinanceAPI())
+'@ | Out-File -FilePath "src/core/cli.py"  -Encoding ASCII 
+          Write-Output "Created temporary cli.py" 
+        }
+ 
+    - name: Set up Python 
+      uses: actions/setup-python@v4
       with:
         python-version: '3.10'
  
     - name: Install dependencies 
       run: |
         python -m pip install --upgrade pip
-        pip install pyinstaller pywin32
-        pip install -e .
+        pip install pyinstaller==6.15.0 pywin32==311 
+        pip install requests==2.31.0 websockets==12.0
  
     - name: Build executable 
       shell: pwsh 
       run: |
+        # 显式声明工作目录 
+        $root = Get-Location 
+        Write-Output "Building from: $root"
+        
+        # 构建命令
         pyinstaller --onefile --clean `
-          --add-data "config;config" `
-          --add-data "src/web/static;static" `
-          --add-data "src/web/templates;templates" `
-          --hidden-import src.api.binance_futures  `
-          --hidden-import src.api.okx_futures  `
-          --hidden-import src.core.strategy.base  `
-          --icon assets/icon.ico  `
-          --name CryptoTrader `
-          $env:ENTRY_POINT
+          --add-data "$root/config;config" `
+          --add-data "$root/src/web/static;static" `
+          --add-data "$root/src/web/templates;templates" `
+          --hidden-import "src.api.binance_futures"  `
+          --hidden-import "src.api.okx_futures"  `
+          --hidden-import "src.core.strategy.base"  `
+          --icon "$root/assets/icon.ico"  `
+          --name "CryptoTrader" `
+          "$root/src/core/cli.py" 
+ 
+        # 验证构建结果
+        if (-not (Test-Path "dist/CryptoTrader.exe"))  {
+          Write-Output "::error::Build failed - executable not found"
+          exit 1 
+        }
  
     - name: Upload artifact 
       uses: actions/upload-artifact@v4 
       with:
         name: CryptoTrader-Windows 
         path: dist/CryptoTrader.exe  
-        retention-days: 3 
+        retention-days: 7 

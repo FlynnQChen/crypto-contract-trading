@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=42"]
+build-backend = "setuptools.build_meta" 
+ 
+[project]
+name = "crypto-contract-trading"
+version = "1.0.0"
+description = "Cryptocurrency Contract Trading System"
+requires-python = ">=3.10"
+dependencies = [
+    "pywin32>=300",
+    "pyinstaller>=6.0",
+    "requests>=2.28",
+    "websockets>=10.0"
+]
+ 
+[project.scripts]
+cryptotrader = "src.core.cli:main" 
