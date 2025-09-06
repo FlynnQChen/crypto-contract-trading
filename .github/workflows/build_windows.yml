@@ -1,4 +1,4 @@
-name: Build Windows Executable
+name: Build Windows Executable 
  
 on:
   push:
@@ -8,28 +8,28 @@ on:
  
 env:
   PYTHON_VERSION: '3.10'
-  WINDOWS_VERSION: 'windows-2022'
+  WINDOWS_VERSION: 'windows-2022'  # 明确指定Windows版本 
  
 jobs:
   build:
-    name: Build on Windows
-    runs-on: ${{ env.WINDOWS_VERSION }}
+    name: Build on Windows 
+    runs-on: windows-2022  # 直接使用值而不是变量引用 
  
     permissions:
-      contents: write  # 允许创建release
+      contents: write
  
     steps:
-    - name: Checkout code 
+    - name: Checkout code
       uses: actions/checkout@v4
  
-    - name: Set up Python
-      uses: actions/setup-python@v5 
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v4 
       with:
         python-version: ${{ env.PYTHON_VERSION }}
  
-    - name: Install dependencies
+    - name: Install dependencies 
       run: |
-        python -m pip install --upgrade pip 
+        python -m pip install --upgrade pip
         pip install pyinstaller pywin32 
         pip install -r requirements.txt  
  
@@ -37,7 +37,7 @@ jobs:
       shell: pwsh 
       run: |
         $version = (Get-Date -Format "yyyyMMdd.HHmm")
-        echo "VERSION=$version" >> $env:GITHUB_ENV
+        echo "VERSION=$version" >> $env:GITHUB_ENV 
         
         pyinstaller --onefile --noconfirm --clean `
           --add-data "config;config" `
@@ -45,9 +45,9 @@ jobs:
           --add-data "src/web/templates;templates" `
           --icon=assets/icon.ico  `
           --name "CryptoTrader-$env:VERSION" `
-          src/main.py  
+          src/main.py 
  
-    - name: Generate checksum 
+    - name: Generate checksum
       shell: pwsh 
       run: |
         $exePath = "dist/CryptoTrader-$env:VERSION.exe" 
@@ -55,16 +55,13 @@ jobs:
         $hash | Out-File -FilePath "$exePath.sha256"  -Encoding ASCII 
  
     - name: Upload artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v4 
       with:
         name: CryptoTrader-Windows
         path: |
           dist/CryptoTrader-${{ env.VERSION }}.exe
           dist/CryptoTrader-${{ env.VERSION }}.exe.sha256 
-          config/
-          static/
-          templates/
-        retention-days: 3 
+        retention-days: 3
  
     - name: Create Release 
       if: startsWith(github.ref,  'refs/tags/')
@@ -74,4 +71,4 @@ jobs:
           dist/CryptoTrader-${{ env.VERSION }}.exe
           dist/CryptoTrader-${{ env.VERSION }}.exe.sha256  
         draft: false
-        prerelease: false
+        prerelease: false 
