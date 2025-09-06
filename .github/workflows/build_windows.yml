@@ -8,11 +8,11 @@ on:
  
 jobs:
   build:
-    name: Build on Windows 
-    runs-on: windows-2022
+    name: Build on Windows
+    runs-on: windows-2022 
  
     permissions:
-      contents: write
+      contents: write 
  
     steps:
     - name: Checkout code 
@@ -21,33 +21,24 @@ jobs:
     - name: Verify project structure
       shell: pwsh
       run: |
-        # Check for required directories 
-        $requiredDirs = "src/api", "src/core", "config"
-        $missing = $requiredDirs | Where-Object { -not (Test-Path $_) }
-        if ($missing) { 
-          Write-Output "Missing directories: $($missing -join ', ')"
-          exit 1 
-        }
+        # 单行命令检查目录结构
+        if (-not (Test-Path "src/core")) { Write-Error "Missing src/core directory"; exit 1 }
+        if (-not (Test-Path "config")) { Write-Error "Missing config directory"; exit 1 }
  
-        # Create entry point if needed 
+        # 单行命令创建入口文件 
         if (-not (Test-Path "src/core/cli.py"))  {
-          Write-Output "Creating temporary entry point..."
-          $entryScript = @'
-from src.core.strategy.base  import run_default_strategy
-from src.api.binance_futures  import BinanceAPI
- 
-if __name__ == "__main__":
-    run_default_strategy(BinanceAPI())
-'@ 
-          $entryScript | Out-File -FilePath "src/temp_entry.py"  -Encoding ASCII
-          $entry = "src/temp_entry.py" 
+          @'
+from src.core.strategy.base  import run_default_strategy 
+from src.api.binance_futures  import BinanceAPI 
+if __name__ == "__main__": run_default_strategy(BinanceAPI())
+'@ | Out-File -FilePath "src/temp_entry.py"  -Encoding ASCII 
+          echo "ENTRY_POINT=src/temp_entry.py"  >> $env:GITHUB_ENV 
         } else {
-          $entry = "src/core/cli.py" 
+          echo "ENTRY_POINT=src/core/cli.py"  >> $env:GITHUB_ENV 
         }
-        echo "ENTRY_POINT=$entry" >> $env:GITHUB_ENV
  
-    - name: Set up Python
-      uses: actions/setup-python@v4 
+    - name: Set up Python 
+      uses: actions/setup-python@v4
       with:
         python-version: '3.10'
  
@@ -60,7 +51,7 @@ if __name__ == "__main__":
     - name: Build executable 
       shell: pwsh 
       run: |
-        pyinstaller --onefile --noconfirm --clean `
+        pyinstaller --onefile --clean `
           --add-data "config;config" `
           --add-data "src/web/static;static" `
           --add-data "src/web/templates;templates" `
@@ -69,11 +60,11 @@ if __name__ == "__main__":
           --hidden-import src.core.strategy.base  `
           --icon assets/icon.ico  `
           --name CryptoTrader `
-          $env:ENTRY_POINT
+          $env:ENTRY_POINT 
  
-    - name: Upload artifact 
-      uses: actions/upload-artifact@v4 
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
       with:
-        name: CryptoTrader-Windows 
-        path: dist/CryptoTrader.exe  
-        retention-days: 3 
+        name: CryptoTrader-Windows
+        path: dist/CryptoTrader.exe 
+        retention-days: 3
