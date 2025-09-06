@@ -27,17 +27,18 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install pyinstaller==6.15.0 pywin32==311
-        pip install requests==2.31.0 websockets==12.0 
+        pip install aiohttp==3.9.3 requests==2.31.0 websockets==12.0
+        pip install -e .
  
     - name: Prepare build environment
       shell: pwsh
       run: |
-        # 创建必要的包结构
+        # 确保包结构正确 
         if (!(Test-Path "src/__init__.py")) { "" > "src/__init__.py" }
         if (!(Test-Path "src/core/__init__.py")) { "" > "src/core/__init__.py" }
         if (!(Test-Path "src/api/__init__.py")) { "" > "src/api/__init__.py" }
  
-        # 使用单行方式写入cli.py 内容
+        # 确保使用绝对导入 
         $cliContent = "from src.core.strategy.base  import run_default_strategy`nfrom src.api.binance_futures  import BinanceAPI`n`ndef main():`n    run_default_strategy(BinanceAPI())`n`nif __name__ == '__main__':`n    main()"
         $cliContent | Out-File -FilePath "src/core/cli.py"  -Encoding ASCII
  
@@ -49,15 +50,24 @@ jobs:
           --add-data "config;config" `
           --add-data "src/web/static;static" `
           --add-data "src/web/templates;templates" `
+          --hidden-import aiohttp `
           --hidden-import src.api.binance_futures  `
           --hidden-import src.api.okx_futures  `
           --hidden-import src.core.strategy.base  `
           --name CryptoTrader `
           src/core/cli.py  
  
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
+    - name: Verify build
+      shell: pwsh
+      run: |
+        if (!(Test-Path "dist/CryptoTrader.exe"))  {
+          Write-Output "::error::Build failed"
+          exit 1 
+        }
+ 
+    - name: Upload artifact 
+      uses: actions/upload-artifact@v4 
       with:
-        name: CryptoTrader-Windows
-        path: dist/CryptoTrader.exe 
-        retention-days: 7
+        name: CryptoTrader-Windows 
+        path: dist/CryptoTrader.exe  
+        retention-days: 7 
