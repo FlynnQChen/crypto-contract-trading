@@ -1,4 +1,4 @@
-name: Build Windows Executable
+name: Build Windows Executable 
  
 on:
   push:
@@ -8,59 +8,73 @@ on:
  
 jobs:
   build:
-    name: Build on Windows 
-    runs-on: windows-2022
+    name: Build on Windows
+    runs-on: windows-2022 
  
     permissions:
-      contents: write
+      contents: write 
  
     steps:
-    - name: Checkout code 
-      uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4 
  
-    - name: Verify project structure
-      shell: pwsh
+    - name: Verify project structure 
+      shell: pwsh 
       run: |
-        # 单行检查目录结构 
-        if (-not (Test-Path "src/core")) { Write-Output "::error::Missing src/core directory"; exit 1 }
-        if (-not (Test-Path "config")) { Write-Output "::error::Missing config directory"; exit 1 }
-        if (-not (Test-Path "assets/icon.ico"))  { Write-Output "::error::Missing icon file"; exit 1 }
- 
-        # 单行创建入口文件 
-        if (-not (Test-Path "src/core/cli.py"))  {
-          Write-Output "from src.core.strategy.base  import run_default_strategy" > src/core/cli.py  
-          Write-Output "from src.api.binance_futures  import BinanceAPI" >> src/core/cli.py  
-          Write-Output "if __name__ == '__main__': run_default_strategy(BinanceAPI())" >> src/core/cli.py 
+        # 验证必要文件存在
+        $requiredFiles = "src/core/cli.py",  "assets/icon.ico",  "config"
+        $missing = $requiredFiles | Where-Object { -not (Test-Path $_) }
+        if ($missing) { 
+          Write-Output "::error::Missing files: $($missing -join ', ')"
+          exit 1 
         }
  
-    - name: Set up Python
-      uses: actions/setup-python@v4 
+    - name: Set up Python 
+      uses: actions/setup-python@v4
       with:
         python-version: '3.10'
  
-    - name: Install dependencies 
+    - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install pyinstaller==6.15.0 pywin32==311 requests==2.31.0 websockets==12.0
+        python -m pip install --upgrade pip 
+        pip install pyinstaller==6.15.0 pywin32==311 pillow==10.3.0
+        pip install requests==2.31.0 websockets==12.0
+ 
+    - name: Convert icon format (if needed)
+      shell: pwsh
+      run: |
+        python -c "
+from PIL import Image
+img = Image.open('assets/icon.ico') 
+if img.format  != 'ICO':
+    print('Converting icon to ICO format...')
+    img.save('assets/converted.ico',  format='ICO')
+"
  
     - name: Build executable 
       shell: pwsh 
       run: |
-        $root = (Get-Item -Path ".\").FullName 
+        $icon = if (Test-Path "assets/converted.ico")  { "assets/converted.ico"  } else { "assets/icon.ico"  }
         pyinstaller --onefile --clean `
-          --add-data "$root/config;config" `
-          --add-data "$root/src/web/static;static" `
-          --add-data "$root/src/web/templates;templates" `
+          --add-data "config;config" `
+          --add-data "src/web/static;static" `
+          --add-data "src/web/templates;templates" `
           --hidden-import src.api.binance_futures  `
           --hidden-import src.api.okx_futures  `
           --hidden-import src.core.strategy.base  `
-          --icon "$root/assets/icon.ico"  `
+          --icon "$icon" `
           --name CryptoTrader `
-          "$root/src/core/cli.py" 
+          src/core/cli.py 
  
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
+        # 验证构建结果 
+        if (-not (Test-Path "dist/CryptoTrader.exe"))  {
+          Write-Output "::error::Build failed - executable not created"
+          exit 1
+        }
+ 
+    - name: Upload artifact 
+      uses: actions/upload-artifact@v4 
       with:
-        name: CryptoTrader-Windows
-        path: dist/CryptoTrader.exe 
+        name: CryptoTrader-Windows 
+        path: dist/CryptoTrader.exe  
         retention-days: 7 
