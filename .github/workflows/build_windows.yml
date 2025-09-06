@@ -29,23 +29,20 @@ jobs:
         pip install pyinstaller==6.15.0 pywin32==311
         pip install pandas==2.1.4 aiohttp==3.9.3 requests==2.31.0 websockets==12.0 
  
-    - name: Prepare build environment
-      shell: pwsh
-      run: |
-        # 确保使用绝对导入 
-        @"
-from src.core.strategy.base  import run_default_strategy 
-from src.api.binance_futures  import BinanceAPI 
- 
-def main():
-    run_default_strategy(BinanceAPI())
- 
-if __name__ == '__main__':
-    main()
-"@ | Out-File -FilePath "src/core/cli.py"  -Encoding ASCII
- 
-    - name: Build executable 
+    - name: Prepare build environment 
       shell: pwsh 
+      run: |
+        # 使用单行方式写入cli.py 内容 
+        $cliContent = "from src.core.strategy.base  import run_default_strategy`nfrom src.api.binance_futures  import BinanceAPI`n`ndef main():`n    run_default_strategy(BinanceAPI())`n`nif __name__ == '__main__':`n    main()"
+        $cliContent | Out-File -FilePath "src/core/cli.py"  -Encoding ASCII 
+ 
+        # 确保必要的__init__.py文件存在
+        if (!(Test-Path "src/__init__.py")) { "" > "src/__init__.py" }
+        if (!(Test-Path "src/core/__init__.py")) { "" > "src/core/__init__.py" }
+        if (!(Test-Path "src/api/__init__.py")) { "" > "src/api/__init__.py" }
+ 
+    - name: Build executable
+      shell: pwsh
       run: |
         pyinstaller --onefile --noconsole --clean `
           --paths src `
@@ -58,7 +55,7 @@ if __name__ == '__main__':
           --hidden-import src.api.okx_futures  `
           --hidden-import src.core.strategy.base  `
           --name CryptoTrader `
-          src/core/cli.py 
+          src/core/cli.py  
  
     - name: Upload artifact
       uses: actions/upload-artifact@v4
