@@ -1,4 +1,4 @@
-name: Build Windows Executable 
+name: Build Windows Executable
  
 on:
   push:
@@ -9,45 +9,47 @@ on:
 jobs:
   build:
     name: Build on Windows
-    runs-on: windows-2022 
+    runs-on: windows-2022
  
     permissions:
-      contents: write 
+      contents: write
  
     steps:
-    - name: Checkout code 
+    - name: Checkout code
       uses: actions/checkout@v4
  
-    - name: Verify project structure
-      shell: pwsh
+    - name: Verify project structure 
+      shell: pwsh 
       run: |
-        # 检查核心目录是否存在
-        $requiredDirs = @("src/api", "src/core", "config")
+        # 检查核心目录是否存在 
+        $requiredDirs = "src/api", "src/core", "config"
         $missingDirs = $requiredDirs | Where-Object { -not (Test-Path $_) }
         
         if ($missingDirs) {
           Write-Output "Missing required directories: $($missingDirs -join ', ')"
-          Get-ChildItem -Recurse 
+          Get-ChildItem -Recurse
           exit 1
         }
  
-        # 确定入口文件 
+        # 确定入口文件
         if (Test-Path "src/core/cli.py")  {
           $entry = "src/core/cli.py" 
-        } elseif (Test-Path "src/core/__main__.py") {
+        }
+        elseif (Test-Path "src/core/__main__.py") {
           $entry = "src/core/__main__.py"
-        } else {
-          # 创建临时入口文件
-          @"
-from src.core.strategy.base  import run_default_strategy 
-from src.api.binance_futures  import BinanceAPI 
+        }
+        else {
+          # 创建临时入口文件 
+          @'
+from src.core.strategy.base  import run_default_strategy
+from src.api.binance_futures  import BinanceAPI
  
-if __name__ == '__main__':
+if __name__ == "__main__":
     run_default_strategy(BinanceAPI())
-"@ | Out-File -FilePath "src/temp_entry.py"  -Encoding ASCII
+'@ | Out-File -FilePath "src/temp_entry.py"  -Encoding ASCII
           $entry = "src/temp_entry.py" 
         }
-        echo "ENTRY_POINT=$entry" >> $env:GITHUB_ENV 
+        echo "ENTRY_POINT=$entry" >> $env:GITHUB_ENV
  
     - name: Set up Python 
       uses: actions/setup-python@v4
@@ -56,12 +58,12 @@ if __name__ == '__main__':
  
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip 
+        python -m pip install --upgrade pip
         pip install pyinstaller pywin32 
         pip install -e .
  
     - name: Build executable
-      shell: pwsh
+      shell: pwsh 
       run: |
         pyinstaller --onefile --noconfirm --clean `
           --add-data "config;config" `
