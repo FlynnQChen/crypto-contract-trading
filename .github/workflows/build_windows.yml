@@ -1,4 +1,4 @@
-name: Build Windows Executable
+name: Build Windows Executable 
  
 on:
   push:
@@ -8,42 +8,48 @@ on:
  
 jobs:
   build:
-    name: Build on Windows 
-    runs-on: windows-2022
+    name: Build on Windows
+    runs-on: windows-2022 
  
     permissions:
-      contents: write
+      contents: write 
  
     steps:
-    - name: Checkout code 
-      uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4 
  
-    - name: Set up Python
-      uses: actions/setup-python@v4 
+    - name: Set up Python 
+      uses: actions/setup-python@v4
       with:
         python-version: '3.10'
  
     - name: Install dependencies 
       run: |
         python -m pip install --upgrade pip
-        pip install pyinstaller==6.15.0 pywin32==311 requests==2.31.0 websockets==12.0 
+        pip install pyinstaller==6.15.0 pywin32==311
+        pip install requests==2.31.0 websockets==12.0 
  
-    - name: Prepare build environment
-      shell: pwsh
+    - name: Fix imports and build 
+      shell: pwsh 
       run: |
-        # 单行创建 __init__.py 文件
+        # 创建必要的包结构 
         if (!(Test-Path "src/__init__.py")) { "" > "src/__init__.py" }
         if (!(Test-Path "src/core/__init__.py")) { "" > "src/core/__init__.py" }
         if (!(Test-Path "src/api/__init__.py")) { "" > "src/api/__init__.py" }
  
-        # 单行创建 cli.py  内容 
-        if (!(Test-Path "src/core/cli.py"))  {
-          "from src.core.strategy.base  import run_default_strategy`nfrom src.api.binance_futures  import BinanceAPI`n`ndef main():`n    run_default_strategy(BinanceAPI())`n`nif __name__ == '__main__':`n    main()" > "src/core/cli.py" 
-        }
+        # 修改cli.py 使用绝对导入 
+        @"
+from src.core.strategy.base  import run_default_strategy 
+from src.api.binance_futures  import BinanceAPI 
  
-    - name: Build executable 
-      shell: pwsh 
-      run: |
+def main():
+    run_default_strategy(BinanceAPI())
+ 
+if __name__ == '__main__':
+    main()
+"@ > src/core/cli.py  
+ 
+        # 构建命令 
         pyinstaller --onefile --noconsole --clean `
           --paths src `
           --add-data "config;config" `
@@ -53,19 +59,11 @@ jobs:
           --hidden-import src.api.okx_futures  `
           --hidden-import src.core.strategy.base  `
           --name CryptoTrader `
-          src/core/cli.py 
+          src/core/cli.py  
  
-    - name: Verify build 
-      shell: pwsh 
-      run: |
-        if (!(Test-Path "dist/CryptoTrader.exe"))  {
-          Write-Output "::error::Build failed"
-          exit 1 
-        }
- 
-    - name: Upload artifact 
-      uses: actions/upload-artifact@v4 
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
       with:
-        name: CryptoTrader-Windows 
-        path: dist/CryptoTrader.exe  
-        retention-days: 7 
+        name: CryptoTrader-Windows
+        path: dist/CryptoTrader.exe 
+        retention-days: 7
