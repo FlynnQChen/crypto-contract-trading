@@ -3,48 +3,75 @@ name: Build Windows Executable
 on:
   push:
     tags:
-      - 'v*'  # 当推送版本标签时触发 
-  workflow_dispatch:  # 允许手动触发
+      - 'v*'
+  workflow_dispatch:
+ 
+env:
+  PYTHON_VERSION: '3.10'
+  WINDOWS_VERSION: 'windows-2022'
  
 jobs:
   build:
-    runs-on: windows-latest  # 必须使用Windows环境 
+    name: Build on Windows
+    runs-on: ${{ env.WINDOWS_VERSION }}
+ 
+    permissions:
+      contents: write  # 允许创建release
  
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4 
+    - name: Checkout code 
+      uses: actions/checkout@v4
  
     - name: Set up Python
-      uses: actions/setup-python@v4 
+      uses: actions/setup-python@v5 
       with:
-        python-version: '3.10'
+        python-version: ${{ env.PYTHON_VERSION }}
  
-    - name: Install dependencies 
+    - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install pyinstaller pywin32
-        pip install -r requirements.txt 
+        python -m pip install --upgrade pip 
+        pip install pyinstaller pywin32 
+        pip install -r requirements.txt  
  
-    - name: Build with PyInstaller
+    - name: Build executable 
+      shell: pwsh 
       run: |
-        # 创建版本文件 
-        echo "VERSION=$(date +%Y%m%d.%H%M)" >> $GITHUB_ENV 
+        $version = (Get-Date -Format "yyyyMMdd.HHmm")
+        echo "VERSION=$version" >> $env:GITHUB_ENV
         
-        # 执行打包 
-        pyinstaller --onefile --windowed \
-          --add-data "config;config" \
-          --add-data "src/web/static;static" \
-          --add-data "src/web/templates;templates" \
-          --icon=assets/icon.ico  \
-          --name CryptoTrader-${{ env.VERSION }} \
+        pyinstaller --onefile --noconfirm --clean `
+          --add-data "config;config" `
+          --add-data "src/web/static;static" `
+          --add-data "src/web/templates;templates" `
+          --icon=assets/icon.ico  `
+          --name "CryptoTrader-$env:VERSION" `
           src/main.py  
  
-    - name: Upload artifact 
-      uses: actions/upload-artifact@v3 
+    - name: Generate checksum 
+      shell: pwsh 
+      run: |
+        $exePath = "dist/CryptoTrader-$env:VERSION.exe" 
+        $hash = (Get-FileHash -Path $exePath -Algorithm SHA256).Hash
+        $hash | Out-File -FilePath "$exePath.sha256"  -Encoding ASCII 
+ 
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
       with:
-        name: CryptoTrader-Windows 
+        name: CryptoTrader-Windows
         path: |
-          dist/CryptoTrader-${{ env.VERSION }}.exe 
+          dist/CryptoTrader-${{ env.VERSION }}.exe
+          dist/CryptoTrader-${{ env.VERSION }}.exe.sha256 
           config/
           static/
           templates/
+        retention-days: 3 
+ 
+    - name: Create Release 
+      if: startsWith(github.ref,  'refs/tags/')
+      uses: softprops/action-gh-release@v1 
+      with:
+        files: |
+          dist/CryptoTrader-${{ env.VERSION }}.exe
+          dist/CryptoTrader-${{ env.VERSION }}.exe.sha256  
+        draft: false
+        prerelease: false
