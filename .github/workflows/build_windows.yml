@@ -1,4 +1,4 @@
-name: Build Windows Executable 
+name: Build Windows Executable
  
 on:
   push:
@@ -8,11 +8,11 @@ on:
  
 jobs:
   build:
-    name: Build on Windows
-    runs-on: windows-2022 
+    name: Build on Windows 
+    runs-on: windows-2022
  
     permissions:
-      contents: write 
+      contents: write
  
     steps:
     - name: Checkout code 
@@ -26,29 +26,19 @@ jobs:
     - name: Install dependencies 
       run: |
         python -m pip install --upgrade pip
-        pip install pyinstaller==6.15.0 
-        pip install pywin32==311 requests==2.31.0 websockets==12.0 
+        pip install pyinstaller==6.15.0 pywin32==311 requests==2.31.0 websockets==12.0 
  
-    - name: Prepare build environment 
-      shell: pwsh 
+    - name: Prepare build environment
+      shell: pwsh
       run: |
-        # 创建必要的包结构
-        if (-not (Test-Path "src/__init__.py")) { New-Item -Path "src/__init__.py" -ItemType File }
-        if (-not (Test-Path "src/core/__init__.py")) { New-Item -Path "src/core/__init__.py" -ItemType File }
-        if (-not (Test-Path "src/api/__init__.py")) { New-Item -Path "src/api/__init__.py" -ItemType File }
+        # 单行创建 __init__.py 文件
+        if (!(Test-Path "src/__init__.py")) { "" > "src/__init__.py" }
+        if (!(Test-Path "src/core/__init__.py")) { "" > "src/core/__init__.py" }
+        if (!(Test-Path "src/api/__init__.py")) { "" > "src/api/__init__.py" }
  
-        # 确保主入口文件存在
-        if (-not (Test-Path "src/core/cli.py"))  {
-          @'
-from src.core.strategy.base  import run_default_strategy 
-from src.api.binance_futures  import BinanceAPI 
- 
-def main():
-    run_default_strategy(BinanceAPI())
- 
-if __name__ == "__main__":
-    main()
-'@ | Out-File -FilePath "src/core/cli.py"  -Encoding ASCII
+        # 单行创建 cli.py  内容 
+        if (!(Test-Path "src/core/cli.py"))  {
+          "from src.core.strategy.base  import run_default_strategy`nfrom src.api.binance_futures  import BinanceAPI`n`ndef main():`n    run_default_strategy(BinanceAPI())`n`nif __name__ == '__main__':`n    main()" > "src/core/cli.py" 
         }
  
     - name: Build executable 
@@ -63,13 +53,13 @@ if __name__ == "__main__":
           --hidden-import src.api.okx_futures  `
           --hidden-import src.core.strategy.base  `
           --name CryptoTrader `
-          src/core/cli.py  
+          src/core/cli.py 
  
-    - name: Verify build
-      shell: pwsh
+    - name: Verify build 
+      shell: pwsh 
       run: |
-        if (-not (Test-Path "dist/CryptoTrader.exe"))  {
-          Write-Output "::error::Build failed - executable not found"
+        if (!(Test-Path "dist/CryptoTrader.exe"))  {
+          Write-Output "::error::Build failed"
           exit 1 
         }
  
