@@ -23,30 +23,35 @@ jobs:
       with:
         python-version: '3.10'
  
-    - name: Install dependencies
+    - name: Install dependencies 
       run: |
-        python -m pip install --upgrade pip 
-        pip install pyinstaller==6.15.0 pywin32==311 
-        pip install pandas==2.1.4 aiohttp==3.9.3 requests==2.31.0 websockets==12.0
+        python -m pip install --upgrade pip
+        pip install pyinstaller==6.15.0 pywin32==311
+        pip install pandas==2.1.4 aiohttp==3.9.3 requests==2.31.0 websockets==12.0 
  
-    - name: Build executable 
-      shell: pwsh 
+    - name: Build executable
+      shell: pwsh
       run: |
-        # 确保使用绝对路径 
-        $root = (Get-Item -Path ".").FullName
+        # 使用绝对路径和显式导入声明 
+        $root = (Get-Item -Path ".").FullName 
         
         pyinstaller --onefile --noconsole --clean `
           --paths "$root/src" `
           --add-data "$root/config;config" `
           --add-data "$root/src/web/static;static" `
           --add-data "$root/src/web/templates;templates" `
-          --hidden-import pandas `
-          --hidden-import aiohttp `
           --hidden-import src.core.strategy.base  `
           --hidden-import src.api.binance_futures  `
           --hidden-import src.api.okx_futures  `
+          --collect-all src.core.strategy  `
           --name CryptoTrader `
           "$root/src/core/cli.py" 
+ 
+        # 验证函数是否被打包
+        if (-not (Test-Path "dist/CryptoTrader.exe"))  {
+          Write-Output "::error::Build failed"
+          exit 1
+        }
  
     - name: Upload artifact 
       uses: actions/upload-artifact@v4 

@@ -22,6 +22,21 @@ import aiohttp
 import pandas as pd
 import numpy as np 
 from typing_extensions import Self 
+# 在 base.py  文件末尾添加（在 if __name__ == '__main__' 之前）
+ 
+def run_default_strategy(exchange: BaseExchange):
+    """默认策略运行函数"""
+    class DefaultStrategy(BaseStrategy):
+        async def on_bar(self, bar: Bar):
+            # 这里实现您的默认策略逻辑
+            print(f"Processing bar: {bar.close}") 
+            
+        async def on_order_update(self, order: Order):
+            print(f"Order updated: {order.status}") 
+    
+    # 创建并运行策略 
+    strategy = DefaultStrategy(exchange, {})
+    return strategy.run()  
  
 # 类型定义 
 T = TypeVar('T')
