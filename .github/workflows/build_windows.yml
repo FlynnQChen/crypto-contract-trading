@@ -1,4 +1,4 @@
-name: Build Windows Executable 
+name: Build Windows Executable
  
 on:
   push:
@@ -8,47 +8,56 @@ on:
  
 jobs:
   build:
-    name: Build on Windows
-    runs-on: windows-2022 
+    name: Build on Windows 
+    runs-on: windows-2022
  
     permissions:
-      contents: write 
+      contents: write
  
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4 
+    - name: Checkout code 
+      uses: actions/checkout@v4
  
-    - name: Verify project structure 
-      shell: pwsh 
+    - name: Verify project structure
+      shell: pwsh
       run: |
-        $required = "src/core/cli.py",  "assets/icon.ico",  "config"
-        $missing = $required | Where-Object { -not (Test-Path $_) }
-        if ($missing) { 
-          Write-Output "::error::Missing files: $($missing -join ', ')"
-          exit 1 
+        # 验证必要文件存在
+        if (-not (Test-Path "src/core/cli.py"))  { Write-Output "::error::Missing cli.py";  exit 1 }
+        if (-not (Test-Path "config")) { Write-Output "::error::Missing config directory"; exit 1 }
+        
+        # 验证或创建默认图标
+        if (-not (Test-Path "assets/icon.ico"))  {
+          Write-Output "::warning::No icon found, using blank icon"
+          New-Item -ItemType Directory -Path "assets" -Force
+          # 创建最小化的1x1透明ICO
+          [byte[]]$iconData = @(
+              0x00,0x00,0x01,0x00,0x01,0x00,0x01,0x01,
+              0x00,0x00,0x01,0x00,0x20,0x00,0x68,0x04,
+              0x00,0x00,0x16,0x00,0x00,0x00,0x28,0x00,
+              0x00,0x00,0x01,0x00,0x00,0x00,0x02,0x00,
+              0x00,0x00,0x01,0x00,0x20,0x00,0x00,0x00,
+              0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+              0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+              0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+              0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+              0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00 
+          )
+          [System.IO.File]::WriteAllBytes("assets/icon.ico",  $iconData)
         }
  
-    - name: Set up Python 
-      uses: actions/setup-python@v4
+    - name: Set up Python
+      uses: actions/setup-python@v4 
       with:
         python-version: '3.10'
  
-    - name: Install dependencies
+    - name: Install dependencies 
       run: |
-        python -m pip install --upgrade pip 
-        pip install pyinstaller==6.15.0 pywin32==311 pillow==10.3.0
-        pip install requests==2.31.0 websockets==12.0 
+        python -m pip install --upgrade pip
+        pip install pyinstaller==6.15.0 pywin32==311
+        pip install requests==2.31.0 websockets==12.0
  
-    - name: Convert icon format 
+    - name: Build executable (without icon)
       shell: pwsh 
-      run: |
-        python -c "from PIL import Image; img = Image.open('assets/icon.ico');  img.save('assets/converted.ico',  format='ICO')" 
-        if (-not (Test-Path "assets/converted.ico"))  {
-          Copy-Item -Path "assets/icon.ico"  -Destination "assets/converted.ico" 
-        }
- 
-    - name: Build executable
-      shell: pwsh
       run: |
         pyinstaller --onefile --clean `
           --add-data "config;config" `
@@ -57,13 +66,12 @@ jobs:
           --hidden-import src.api.binance_futures  `
           --hidden-import src.api.okx_futures  `
           --hidden-import src.core.strategy.base  `
-          --icon "assets/converted.ico"  `
           --name CryptoTrader `
-          src/core/cli.py  
+          src/core/cli.py 
  
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
+    - name: Upload artifact 
+      uses: actions/upload-artifact@v4 
       with:
-        name: CryptoTrader-Windows
-        path: dist/CryptoTrader.exe 
-        retention-days: 7
+        name: CryptoTrader-Windows 
+        path: dist/CryptoTrader.exe  
+        retention-days: 7 
