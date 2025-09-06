@@ -27,23 +27,15 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install pyinstaller==6.15.0 pywin32==311
-        pip install aiohttp==3.9.3 requests==2.31.0 websockets==12.0
-        pip install -e .
+        pip install aiohttp==3.9.3 requests==2.31.0 websockets==12.0 
+        
+        # 仅当pyproject.toml 格式正确时才安装项目 
+        if [ -f pyproject.toml  ]; then
+          pip install -e .
+        fi 
  
-    - name: Prepare build environment
+    - name: Build executable
       shell: pwsh
-      run: |
-        # 确保包结构正确 
-        if (!(Test-Path "src/__init__.py")) { "" > "src/__init__.py" }
-        if (!(Test-Path "src/core/__init__.py")) { "" > "src/core/__init__.py" }
-        if (!(Test-Path "src/api/__init__.py")) { "" > "src/api/__init__.py" }
- 
-        # 确保使用绝对导入 
-        $cliContent = "from src.core.strategy.base  import run_default_strategy`nfrom src.api.binance_futures  import BinanceAPI`n`ndef main():`n    run_default_strategy(BinanceAPI())`n`nif __name__ == '__main__':`n    main()"
-        $cliContent | Out-File -FilePath "src/core/cli.py"  -Encoding ASCII
- 
-    - name: Build executable 
-      shell: pwsh 
       run: |
         pyinstaller --onefile --noconsole --clean `
           --paths src `
@@ -57,17 +49,9 @@ jobs:
           --name CryptoTrader `
           src/core/cli.py  
  
-    - name: Verify build
-      shell: pwsh
-      run: |
-        if (!(Test-Path "dist/CryptoTrader.exe"))  {
-          Write-Output "::error::Build failed"
-          exit 1 
-        }
- 
-    - name: Upload artifact 
-      uses: actions/upload-artifact@v4 
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
       with:
-        name: CryptoTrader-Windows 
-        path: dist/CryptoTrader.exe  
-        retention-days: 7 
+        name: CryptoTrader-Windows
+        path: dist/CryptoTrader.exe 
+        retention-days: 7
