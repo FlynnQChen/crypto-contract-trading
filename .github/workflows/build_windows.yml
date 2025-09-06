@@ -18,14 +18,38 @@ jobs:
     - name: Checkout code 
       uses: actions/checkout@v4
  
-    - name: Verify requirements.txt 
+    - name: Verify entry point
       shell: pwsh
       run: |
-        if (!(Test-Path "requirements.txt"))  {
-          Write-Output "pyinstaller>=6.0.0" > requirements.txt 
-          Write-Output "pywin32>=300" >> requirements.txt  
+        # 检查可能的入口文件
+        $entryPoints = @(
+            "src/web/main.py", 
+            "src/core/main.py", 
+            "src/api/main.py" 
+        )
+        
+        $foundEntry = $null 
+        foreach ($file in $entryPoints) {
+            if (Test-Path $file) {
+                $foundEntry = $file 
+                break
+            }
         }
-        Get-Content requirements.txt  
+ 
+        if (-not $foundEntry) {
+            Write-Output "No main.py  found, creating entry point..."
+            @"
+from src.core.strategy.base  import run_strategy 
+from src.api.binance_futures  import BinanceAPI 
+ 
+if __name__ == "__main__":
+    api = BinanceAPI()
+    run_strategy(api)
+"@ | Out-File -FilePath "src/main.py"  -Encoding ASCII 
+            $foundEntry = "src/main.py" 
+        }
+ 
+        echo "ENTRY_POINT=$foundEntry" >> $env:GITHUB_ENV 
  
     - name: Set up Python 
       uses: actions/setup-python@v4
@@ -35,20 +59,25 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip 
-        pip install -r requirements.txt  
+        pip install pyinstaller pywin32 
+        pip install -e .
  
     - name: Build executable
       shell: pwsh
       run: |
         $version = Get-Date -Format "yyyyMMdd.HHmm"
-        echo "VERSION=$version" >> $env:GITHUB_ENV 
+        echo "VERSION=$version" >> $env:GITHUB_ENV
+        
         pyinstaller --onefile --noconfirm --clean `
           --add-data "config;config" `
           --add-data "src/web/static;static" `
           --add-data "src/web/templates;templates" `
-          --icon=assets/icon.ico  `
+          --hidden-import="src.api.binance_futures"  `
+          --hidden-import="src.api.okx_futures"  `
+          --hidden-import="src.core.strategy.base"  `
+          --icon="assets/icon.ico"  `
           --name "CryptoTrader-$env:VERSION" `
-          src/main.py 
+          "$env:ENTRY_POINT"
  
     - name: Upload artifacts 
       uses: actions/upload-artifact@v4 
