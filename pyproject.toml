@@ -7,7 +7,9 @@ name = "crypto-contract-trading"
 version = "1.0.0"
 description = "Cryptocurrency Contract Trading System"
 requires-python = ">=3.10"
+# pyproject.toml  
 dependencies = [
+    "pandas>=2.1.0",
     "aiohttp>=3.9.0",
     "requests>=2.31.0",
     "websockets>=12.0"
