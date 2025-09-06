@@ -15,13 +15,13 @@ jobs:
       contents: write 
  
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4 
+    - name: Checkout code 
+      uses: actions/checkout@v4
  
     - name: Verify project structure
       shell: pwsh
       run: |
-        # 检查核心目录是否存在 
+        # 检查核心目录是否存在
         $requiredDirs = @("src/api", "src/core", "config")
         $missingDirs = $requiredDirs | Where-Object { -not (Test-Path $_) }
         
@@ -37,22 +37,22 @@ jobs:
         } elseif (Test-Path "src/core/__main__.py") {
           $entry = "src/core/__main__.py"
         } else {
-          # 创建临时入口文件 
+          # 创建临时入口文件
           @"
-from src.core.strategy.base  import run_default_strategy
+from src.core.strategy.base  import run_default_strategy 
 from src.api.binance_futures  import BinanceAPI 
  
-if __name__ == "__main__":
+if __name__ == '__main__':
     run_default_strategy(BinanceAPI())
 "@ | Out-File -FilePath "src/temp_entry.py"  -Encoding ASCII
           $entry = "src/temp_entry.py" 
         }
-        echo "ENTRY_POINT=$entry" >> $env:GITHUB_ENV
+        echo "ENTRY_POINT=$entry" >> $env:GITHUB_ENV 
  
-    - name: Set up Python
-      uses: actions/setup-python@v4 
+    - name: Set up Python 
+      uses: actions/setup-python@v4
       with:
-        python-version: '3.10' 
+        python-version: '3.10'
  
     - name: Install dependencies
       run: |
@@ -72,7 +72,7 @@ if __name__ == "__main__":
           --hidden-import src.core.strategy.base  `
           --icon assets/icon.ico  `
           --name CryptoTrader `
-          $env:ENTRY_POINT 
+          $env:ENTRY_POINT
  
     - name: Upload artifact 
       uses: actions/upload-artifact@v4 
