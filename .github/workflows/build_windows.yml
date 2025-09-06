@@ -1,4 +1,4 @@
-name: Build Windows Executable 
+name: Build Windows Executable
  
 on:
   push:
@@ -8,25 +8,22 @@ on:
  
 jobs:
   build:
-    name: Build on Windows
-    runs-on: windows-2022 
+    name: Build on Windows 
+    runs-on: windows-2022
  
     permissions:
-      contents: write 
+      contents: write
  
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4 
+    - name: Checkout code 
+      uses: actions/checkout@v4
  
-    - name: Verify requirements.txt  exists
+    - name: Verify requirements.txt 
       shell: pwsh
       run: |
-        if (-not (Test-Path "requirements.txt"))  {
-          Write-Output "Creating default requirements.txt" 
-          @"
-pyinstaller>=6.0.0
-pywin32>=300
-"@ | Out-File -FilePath "requirements.txt"  -Encoding ASCII
+        if (!(Test-Path "requirements.txt"))  {
+          Write-Output "pyinstaller>=6.0.0" > requirements.txt 
+          Write-Output "pywin32>=300" >> requirements.txt  
         }
         Get-Content requirements.txt  
  
@@ -35,17 +32,16 @@ pywin32>=300
       with:
         python-version: '3.10'
  
-    - name: Install dependencies 
+    - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt 
+        python -m pip install --upgrade pip 
+        pip install -r requirements.txt  
  
-    - name: Build executable 
-      shell: pwsh 
+    - name: Build executable
+      shell: pwsh
       run: |
-        $version = (Get-Date -Format "yyyyMMdd.HHmm")
-        echo "VERSION=$version" >> $env:GITHUB_ENV
-        
+        $version = Get-Date -Format "yyyyMMdd.HHmm"
+        echo "VERSION=$version" >> $env:GITHUB_ENV 
         pyinstaller --onefile --noconfirm --clean `
           --add-data "config;config" `
           --add-data "src/web/static;static" `
@@ -58,6 +54,5 @@ pywin32>=300
       uses: actions/upload-artifact@v4 
       with:
         name: CryptoTrader-Windows 
-        path: |
-          dist/CryptoTrader-${{ env.VERSION }}.exe 
+        path: dist/CryptoTrader-${{ env.VERSION }}.exe 
         retention-days: 3 
