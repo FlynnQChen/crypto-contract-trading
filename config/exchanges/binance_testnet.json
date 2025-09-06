@@ -1,0 +1,34 @@
+{
+  "exchange": "binance",
+  "testnet": true,
+  "api_config": {
+    "endpoint": "https://testnet.binancefuture.com", 
+    "stream_endpoint": "wss://stream.binancefuture.com/ws", 
+    "futures_type": "usdt_margined",  // 支持usdt_margined/coin_margined 
+    "api_key": "",                    // 运行时通过Web界面输入 
+    "api_secret": ""                  // 运行时通过Web界面输入 
+  },
+  "contract_settings": {
+    "default_leverage": 10,           // 默认杠杆倍数 
+    "leverage_limits": {
+      "BTCUSDT": 125,
+      "ETHUSDT": 100,
+      "SOLUSDT": 50,
+      "ADAUSDT": 20,
+      "*": 20                         // 其他交易对默认值
+    },
+    "position_limits": {
+      "max_balance_ratio": 0.3,       // 单币种最大仓位占比 
+      "min_notional": 10.0            // 最小下单金额(USDT)
+    }
+  },
+  "risk_parameters": {
+    "liquidation_warning": 0.15,      // 保证金率≤15%预警
+    "force_liquidation": 0.10,        // 保证金率≤10%强平
+    "funding_rate_threshold": 0.0005  // 资金费率>0.05%暂停开仓
+  },
+  "testnet_specific": {
+    "initial_balance": 10000.0,       // 测试网初始余额(USDT)
+    "simulate_slippage": 0.003        // 模拟滑点(0.3%)
+  }
+}
